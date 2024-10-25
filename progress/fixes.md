@@ -62,4 +62,3 @@ ensure your tsconfig.json is not enforcing unused variable checks. It should loo
 git rm -r --cached node_modules
 
 
-Hello world 
