@@ -2,7 +2,7 @@
 
 Update Your .eslintrc.json
 
-'''
+```
 {
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
@@ -29,14 +29,15 @@ Update Your .eslintrc.json
   ]
 }
 
-'''
+```
 
 Those rules disable those errors
 
 -- tsconfig
 ensure your tsconfig.json is not enforcing unused variable checks. It should look like this:
 
-''' 
+```
+ 
 {
   "compilerOptions": {
     // other options...
@@ -45,12 +46,15 @@ ensure your tsconfig.json is not enforcing unused variable checks. It should loo
   }
 }
 
-'''
+```
+
 
 
 -- Run ESLint Again
 
-''' npx eslint . --ext .ts,.tsx '''
+```
+ npx eslint . --ext .ts,.tsx ```
+
 
 
 -- To remove items cached in git:
