@@ -62,3 +62,53 @@ ensure your tsconfig.json is not enforcing unused variable checks. It should loo
 git rm -r --cached node_modules
 
 
+### Configurin prisma
+```
+npm install prisma --save-dev
+npx prisma init
+```
+Create a migration after editing the schema.prisma
+```
+npx prisma migrate dev --name init
+
+```
+Generate Prisma Client to interact with the database, prisma client needs to be generated
+```
+
+npx prisma generate
+
+```
+
+
+- Grant user permision to create databases
+
+```
+GRANT ALL PRIVILEGES ON *.* TO 'your_user'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+
+
+```
+
+
+
+- The error "Cannot use import statement outside a module" indicates that your Node.js environment is not set up to support ES module syntax (i.e., using import and export statements). By default, Node.js uses CommonJS modules. However, you can enable ES module support in your project. Here’s how to do that and ensure everything works correctly.
+```
+
+{
+  "name": "your-project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^your_version",
+    "@prisma/client": "^your_version"
+  },
+  "devDependencies": {
+    "prisma": "^your_version"
+  }
+}
+
+```
