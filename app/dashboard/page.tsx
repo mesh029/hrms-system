@@ -17,6 +17,7 @@ import Footer from '@/components/footer';
 
 export default function HRMSDashboard() {
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const employees = [
     { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
@@ -25,6 +26,10 @@ export default function HRMSDashboard() {
     { id: 4, name: 'Diana Ross', role: 'HR Specialist', department: 'Human Resources' },
   ]
 
+  const handleTabClick = (value: "dashboard" | "employees" | "performance") => {
+    setActiveTab(value);
+  };
+  
   return (
     <div style={{ 
       display: 'flex', 
@@ -35,12 +40,54 @@ export default function HRMSDashboard() {
     <div className="flex flex-col space-y-4 p-8 bg-background" style={{flex:1, padding:"20px"}}>
 
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList>
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="employees">Employees</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-        </TabsList>
-
+      <TabsList
+            style={{
+              display: 'flex',
+              borderRadius: '5px',
+              padding: '5px',
+              gap: '10px',
+            }}
+          >
+            <TabsTrigger
+              value="dashboard"
+              onClick={() => handleTabClick('dashboard')}
+              style={{
+                backgroundColor: activeTab === 'dashboard' ? '#003366' : '#8B1F25', // Dark blue for active, maroon for inactive
+                color: activeTab === 'dashboard' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger
+              value="employees"
+              onClick={() => handleTabClick('employees')}
+              style={{
+                backgroundColor: activeTab === 'employees' ? '#003366' : '#8B1F25',
+                color: activeTab === 'employees' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Employees
+            </TabsTrigger>
+            <TabsTrigger
+              value="performance"
+              onClick={() => handleTabClick('performance')}
+              style={{
+                backgroundColor: activeTab === 'performance' ? '#003366' : '#8B1F25',
+                color: activeTab === 'performance' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Performance
+            </TabsTrigger>
+          </TabsList>
         <TabsContent value="dashboard">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>

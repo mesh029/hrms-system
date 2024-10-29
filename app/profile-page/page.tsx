@@ -23,6 +23,13 @@ export default function ProfilePage() {
   const [isAdmin] = useState(false)
   const [isApprover] = useState(false)
   const [showDeletionCalendar, setShowDeletionCalendar] = useState(false)
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+
+  const handleTabClick = (value: "personal" | "account" | "timesheet" | "leave") => {
+    setActiveTab(value);
+  };
+  
 
   const user = {
     name: "Alice Johnson",
@@ -89,6 +96,68 @@ export default function ProfilePage() {
         <Card className="md:col-span-2">
           <Tabs defaultValue="personal" className="w-full">
             <CardHeader>
+
+            <TabsList
+            style={{
+              display: 'flex',
+              borderRadius: '5px',
+              padding: '5px',
+              gap: '10px',
+            }}
+          >
+            <TabsTrigger
+              value="personal"
+              onClick={() => handleTabClick('personal')}
+              style={{
+                backgroundColor: activeTab === 'account' ? '#003366' : '#8B1F25', // Dark blue for active, maroon for inactive
+                color: activeTab === 'account' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger
+              value="account"
+              onClick={() => handleTabClick('account')}
+              style={{
+                backgroundColor: activeTab === 'personal' ? '#003366' : '#8B1F25',
+                color: activeTab === 'personal' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Employees
+            </TabsTrigger>
+            <TabsTrigger
+              value="timesheet"
+              onClick={() => handleTabClick('timesheet')}
+              style={{
+                backgroundColor: activeTab === 'account' ? '#003366' : '#8B1F25',
+                color: activeTab === 'account' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Timesheet
+            </TabsTrigger>
+            <TabsTrigger
+              value="leave"
+              onClick={() => handleTabClick('leave')}
+              style={{
+                backgroundColor: activeTab === 'timesheet' ? '#003366' : '#8B1F25',
+                color: activeTab === 'timesheet' ? '#FFFFFF' : '#DDDDDD',
+                padding: '10px 20px',
+                borderRadius: '5px',
+                transition: 'background-color 0.3s, color 0.3s',
+              }}
+            >
+              Leave
+            </TabsTrigger>
+          </TabsList>
               <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                 <TabsTrigger value="personal">Personal</TabsTrigger>
                 <TabsTrigger value="account">Account</TabsTrigger>
