@@ -3,30 +3,60 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken'; 
+import dotenv from 'dotenv';
 
+dotenv.config()
 const prisma = new PrismaClient();
+
 
 // Create a new user
 export const createUser = async (req, res) => {
-    const { name, email, password, role, department } = req.body;
+    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays } = req.body;
 
-    try {
-        // Hash the password before saving
-        const hashedPassword = await bcrypt.hash(password, 10);
+    // Generate a default password for the new user
+const generateDefaultPassword = () => {
+    return 'password123'; // You can modify this as needed, or make it random
+};
 
-        const newUser = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role,
-                department,
-            },
-        });
-        res.status(201).json(newUser);
-    } catch (error) {
-        res.status(500).json({ error: 'Error creating user' });
-    }
+try {
+    // Use default password if no password is provided
+    const finalPassword = password || generateDefaultPassword();
+
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
+
+    // Create the user in the database
+    const newUser = await prisma.user.create({
+        data: {
+            name,
+            email,
+            password: hashedPassword,
+            role,
+            department,
+            address,
+            hireDate,
+            endDate,
+            reportsTo,
+            manager,
+            weight,
+            height,
+            leaveDays,
+            // Set password reset fields to null at creation
+            passwordResetToken: null,
+            passwordResetTokenExpiry: null,
+        },
+    });
+
+    // Send the default password back to the admin
+    res.status(201).json({
+        message: "User created successfully",
+        newUser,
+        defaultPassword: finalPassword, // send default password
+    });
+} catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Error creating user' });
+}
 };
 
 
@@ -95,7 +125,7 @@ export const deleteUser = async (req, res) => {
 
 
 // Secret key for signing JWTs
-const JWT_SECRET = 'your_jwt_secret'; // Replace with your own secret key
+const JWT_SECRET = process.env.JWT_SECRET// Replace with your own secret key
 
 // Function to log in and get a JWT token
 export const login = async (req, res) => {

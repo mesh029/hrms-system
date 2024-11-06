@@ -112,3 +112,11 @@ FLUSH PRIVILEGES;
 }
 
 ```
+
+To add shadcn components
+
+```
+
+npx shadcn@latest add textarea switch select table scroll-area
+
+```

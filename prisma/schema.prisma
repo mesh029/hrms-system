@@ -14,15 +14,33 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  password   String
-  role       String
-  department String
-  leaves     Leave[]
-  timesheets Timesheet[]
+  id                      Int        @id @default(autoincrement())
+  name                    String
+  email                   String     @unique
+  password                String
+  role                    String
+  department              String
+  pay                     String    @default("Null")
+  hireDate                DateTime  @default(now())
+  endDate                 DateTime?  // Optional
+  reportsTo               Int?       // Assuming it references another User
+  weight                  String?    // Optional
+  height                  String?    // Optional
+  address                 String    @default("Null")
+  manager                 String?    // Optional
+  passwordResetToken      String?    // Token used for password resets
+  leaveDays               Int?
+  passwordResetTokenExpiry DateTime? // Expiry date for the reset token
+  createdAt               DateTime   @default(now()) // Auto-generated field
+  updatedAt               DateTime   @default(now()) @updatedAt      // Auto-updated field
+  
+  // Relationships
+  leaves      Leave[]
+  timesheets  Timesheet[]
+  
+
 }
+
 
 model Leave {
   id         Int      @id @default(autoincrement())

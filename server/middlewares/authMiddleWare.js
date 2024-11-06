@@ -34,7 +34,7 @@ export const adminMiddleware = async (req, res, next) => {
 };
 
 // Secret key for verifying JWTs
-const JWT_SECRET = 'your_jwt_secret'; // Replace with your own secret key
+// Replace with your own secret key
 
 export const authenticateJWT = (req, res, next) => {
     const token = req.header('Authorization')?.split(' ')[1]; // Extract token from the Authorization header
@@ -44,12 +44,35 @@ export const authenticateJWT = (req, res, next) => {
     }
 
     // Verify the token
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({ error: 'Invalid token' });
         }
 
         req.user = user; // Store user info in the request object
         next(); // Proceed to the next middleware or route handler
+    });
+};
+
+//Authenticate token
+
+
+export const authenticateToken = (req, res, next) => {
+    const token = req.headers['authorization']?.split(' ')[1];
+    console.log("Received Token:", token);
+    
+    if (!token) {
+        console.log("No token found");
+        return res.sendStatus(401); // Unauthorized
+    }
+    
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            console.log("JWT verification error:", err);
+            return res.sendStatus(403); // Forbidden
+        }
+    
+        req.user = user;
+        next();
     });
 };
