@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
 import { Calendar as CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users } from "lucide-react"
-import { useRouter } from "next/navigation"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,24 +16,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import Footer from '@/components/footer';
-import Header from '@/components/header';
+import { useToast } from "@/components/ui/toaster"
 
-// Zod schema for form validation
 const formSchema = z.object({
-    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-    role: z.string().min(1, { message: "Role is required." }),
-    department: z.string().min(1, { message: "Department is required." }),
-    pay: z.string().min(1, { message: "Pay is required." }),
-    email: z.string().email({ message: "Invalid email address." }),
-    hireDate: z.date({ required_error: "Hire date is required." }),
-    endDate: z.date().optional(),
-    reportsTo: z.string().optional(),
-    weight: z.string().optional(),
-    height: z.string().optional(),
-    address: z.string().min(1, { message: "Address is required." }),
-    manager: z.string().optional(),
-  })
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters." }).optional(),
+  role: z.string().min(1, { message: "Role is required." }),
+  department: z.string().min(1, { message: "Department is required." }),
+  address: z.string().min(1, { message: "Address is required." }),
+  hireDate: z.date({ required_error: "Hire date is required." }),
+  endDate: z.date().optional(),
+  reportsTo: z.string().min(1, { message: "Reports To is required." }),
+  manager: z.string().optional(),
+  weight: z.string().optional(),
+  height: z.string().optional(),
+  leaveDays: z.number().min(0, { message: "Leave days must be a positive number." }),
+})
+
 // Mock array of existing users
 const existingUsers = [
   { id: "1", name: "Jane Smith" },
@@ -43,68 +43,110 @@ const existingUsers = [
   { id: "5", name: "Emma Brown" },
 ]
 
-export default function UserInformationForm() {
+interface User {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  // Add any other fields that your `user` object has
+}
+interface UserInformationFormProps {
+  user: User | null; // If user can be null, or a valid User object
+  onClose: () => void;
+  onUpdate: (updatedUser: User) => void;
+  isEditMode: boolean;
+  userId?: string; // optional userId if necessary
+}
+
+
+export default function UserInformationForm({ onClose, onUpdate, isEditMode, userId }: UserInformationFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [hireDate, setHireDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
-  const [generatedPassword, setGeneratedPassword] = useState("")
+  const[token, setToken] = useState<any>(null);
+  const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-        name: "",
-        role: "",
-        department: "",
-        pay: "",
-        email: "",
-        reportsTo: "",
-        weight: "",
-        height: "",
-        address: "",
-        manager: "",
-      },
+      name: "",
+      email: "",
+      role: "",
+      department: "",
+      address: "",
+      reportsTo: "",
+      manager: "",
+      weight: "",
+      height: "",
+      leaveDays: 0,
+    },
   })
 
- 
-  const router = useRouter()
+  useEffect(() => {
+    const token = localStorage.getItem('jwtToken'); 
+    setToken(localStorage.getItem('jwtToken'));
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-      try {
-          // Simulate submitting the user data to an API
-          console.log(values)
-          const response = await fetch("/api/users", {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-              },
-              body: JSON.stringify(values),
-          })
+  }, []);
 
-          if (!response.ok) {
-              throw new Error("Error creating user")
-          }
-
-          const data = await response.json()
-          alert(`User created successfully. Default password: ${data.defaultPassword}`)
-      } catch (error) {
-          console.error("Error:", error)
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true)
+    try {
+      const url = isEditMode ? `/api/users/${userId}` : 'http://localhost:3030/api/users';
+      const method = isEditMode ? 'PUT' : 'POST';
+      const successMessage = isEditMode ? "User information updated successfully" : "User created successfully";
+  
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+  
+      if (!response.ok) {
+        throw new Error(isEditMode ? 'Failed to update user' : 'Failed to create user');
       }
-  }
+  
+      const data = await response.json();
+      toast({
+        title: "Success",
+        description: isEditMode ? successMessage : `User created successfully. Default password: ${data.defaultPassword}`,
+      });
+  
+      if (isEditMode) {
+        onUpdate(data); // Trigger update for the edited user
+        onClose();
+      } else {
+        form.reset(); // Reset form after adding a new user
+      }
+  
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: isEditMode ? "Failed to update user information. Please try again." : "Failed to create user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
 
-  const handleSubmitClick = () => {
-      form.handleSubmit(onSubmit)()  // Manually trigger form submission
-  }
+ // useEffect(() => {
+   // if (form.formState.isSubmitSuccessful) {
+     // form.reset()
+    //}
+  //}, [form.formState.isSubmitSuccessful, form.reset])
+  
 
   return (
-    <div>
-              <Header />
-
-
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle>User Information Form</CardTitle>
         <CardDescription>Enter the details of the new user</CardDescription>
       </CardHeader>
-      <form>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="grid gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -118,6 +160,18 @@ export default function UserInformationForm() {
               )}
             </div>
             <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <div className="relative">
+                <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input id="email" placeholder="john@example.com" className="pl-8" {...form.register("email")} />
+              </div>
+              {form.formState.errors.email && (
+                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="role">Role *</Label>
               <div className="relative">
                 <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -127,26 +181,14 @@ export default function UserInformationForm() {
                 <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
               )}
             </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="pay">Pay *</Label>
+              <Label htmlFor="department">Department *</Label>
               <div className="relative">
-                <span className="absolute left-2 top-2.5 text-muted-foreground">$</span>
-                <Input id="pay" placeholder="50,000" className="pl-6" {...form.register("pay")} />
+                <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input id="department" placeholder="Engineering" className="pl-8" {...form.register("department")} />
               </div>
-              {form.formState.errors.pay && (
-                <p className="text-sm text-red-500">{form.formState.errors.pay.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <div className="relative">
-                <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="email" placeholder="john@example.com" className="pl-8" {...form.register("email")} />
-              </div>
-              {form.formState.errors.email && (
-                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
+              {form.formState.errors.department && (
+                <p className="text-sm text-red-500">{form.formState.errors.department.message}</p>
               )}
             </div>
           </div>
@@ -218,13 +260,12 @@ export default function UserInformationForm() {
                 name="reportsTo"
                 control={form.control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger className="w-full">
+                  <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value}>                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select supervisor" />
                     </SelectTrigger>
                     <SelectContent>
                       {existingUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
+                        <SelectItem key={user.id} value={String(user.id)}>
                           {user.name}
                         </SelectItem>
                       ))}
@@ -244,7 +285,7 @@ export default function UserInformationForm() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="weight">Weight (kg)</Label>
               <div className="relative">
@@ -260,11 +301,14 @@ export default function UserInformationForm() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="height">Leave Days (cm)</Label>
+              <Label htmlFor="leaveDays">Leave Days *</Label>
               <div className="relative">
                 <CalendarIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="height" placeholder="9" className="pl-8" {...form.register("height")} />
+                <Input id="leaveDays" type="number" placeholder="20" className="pl-8" {...form.register("leaveDays", { valueAsNumber: true })} />
               </div>
+              {form.formState.errors.leaveDays && (
+                <p className="text-sm text-red-500">{form.formState.errors.leaveDays.message}</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
@@ -279,13 +323,11 @@ export default function UserInformationForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button onClick={handleSubmitClick} className="w-full">Submit User Information</Button>
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Creating User..." : "Submit User Information"}
+          </Button>
         </CardFooter>
       </form>
     </Card>
-    <Footer/>
-
-    </div>
-
   )
 }

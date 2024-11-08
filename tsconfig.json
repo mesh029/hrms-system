@@ -24,6 +24,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/profile-page/page.jsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "app/profile-page/page.jsx", ".next/types/app/user-information/page.tsx"],
   "exclude": ["node_modules"]
 }

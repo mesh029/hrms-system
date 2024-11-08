@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect, useState } from 'react';
+import { SetStateAction, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,73 +10,134 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Calendar as CalendarIcon, Camera, Lock, LogOut, Mail, Phone, User } from 'lucide-react';
+import { Calendar as CalendarIcon, Camera, Lock, LogOut, Mail, Phone, User } from 'lucide-react';
 
 import TimesheetComponent from "@/components/timesheet";
 import LeaveManagementComponent from '@/components/leave';
 import Footer from '@/components/footer';
 import Header from '@/components/header';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@radix-ui/react-select';
+import { toast } from "@/components/ui/use-toast";
+import UserInformationForm from '../user-information/page';
+
+
+const employees = [
+  { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
+  { id: 2, name: 'Bob Smith', role: 'Product Manager', department: 'Product' },
+  { id: 3, name: 'Charlie Brown', role: 'UX Designer', department: 'Design' },
+  { id: 4, name: 'Diana Ross', role: 'HR Specialist', department: 'Human Resources' },
+]
+interface User {
+  id: number; // or string, depending on your ID type
+  name: string;
+  role: string;
+  department: string;
+  // Add any additional fields your user objects have
+}
 
 export default function ProfilePage() {
-  const [isAdmin] = useState(true);
   const [isApprover] = useState(false);
   const [showDeletionCalendar, setShowDeletionCalendar] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [userMain, setUser] = useState<any>(null); // to store user data
   const [loading, setLoading] = useState(true); // loading state
   const [error, setError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false); // simplified hook for admin role
+  const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
+    { id: 2, name: 'Bob Smith', role: 'Product Manager', department: 'Product' },
+    { id: 3, name: 'Charlie Brown', role: 'UX Designer', department: 'Design' },
+    { id: 4, name: 'Diana Ross', role: 'HR Specialist', department: 'Human Resources' },
+
+  ])
   // Fetch user details using the token
-  useEffect(() => {
-    const token = localStorage.getItem('jwtToken'); // Get the token from localStorage
 
-    if (!token) {
-      setError("No token found");
-      setLoading(false);
-      return;
-    }
+useEffect(() => {
+  const token = localStorage.getItem("jwtToken"); // Get the token from localStorage
 
-    // Step 1: Fetch user data using the /api/user/me endpoint
-    fetch("http://localhost:3030/api/user/me", {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
+  if (!token) {
+    setError("No token found");
+    setLoading(false);
+    return;
+  }
+
+  fetch("http://localhost:3030/api/user/me", {
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Failed to fetch user data");
       }
+      return response.json();
     })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch user data");
-        }
-        return response.json();
-      })
-      .then((userData) => {
-        // Step 2: Extract the user ID from the response and use it to fetch user details
-        const userId = userData.id; // Extract the ID from the userData object
+    .then((userData) => {
+      const userId = userData.id;
 
-        // Step 3: Fetch the full user data from the /users/:id route using the extracted ID
-        return fetch(`http://localhost:3030/api/users/${userId}`, {
+      return fetch(`http://localhost:3030/api/users/${userId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Failed to fetch detailed user data");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      setUser(data); // Set the fetched user data
+      const isAdmin = ["admin", "approver", "hrmanager"].includes(data.role.toLowerCase());
+      setIsAdmin(isAdmin); // Set admin status
+
+      // If the user is an admin, fetch the list of all users
+      if (isAdmin) {
+        return fetch("http://localhost:3030/api/users", {
           headers: {
             "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
-      })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch detailed user data");
-        }
-        return response.json();
-      })
-      .then((data) => {
-        setUser(data); // Set the fetched user data
-        setLoading(false); // Stop loading
-      })
-      .catch((err) => {
-        setError(err.message); // Set error if any
-        setLoading(false); // Stop loading in case of error
-      });
-  }, []);
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch all users data");
+            }
+            return response.json();
+          })
+          .then((allUsersData) => {
+            setAllUsers(allUsersData); // Set all users data
+          });
+      }
+    })
+    .catch((err) => {
+      setError(err.message); // Set error if any
+    })
+    .finally(() => {
+      setLoading(false); // Stop loading in case of success or error
+    });
+}, []);
+
+
+
+const handleEmployeeClick = (employee: SetStateAction<null>) => {
+  setSelectedUser(employee);
+  setIsEditPopupOpen(true);
+};
+
+const handleUpdateUser = (updatedUser: User) => {
+  setAllUsers(allUsers.map(user => user.id === updatedUser.id ? updatedUser : user));
+  toast({
+    title: "User Updated",
+    description: `${updatedUser.name}'s information has been updated successfully.`,
+  });
+};
+
+
   // Loading spinner component
   const LoadingSpinner = () => (
     <div className="flex justify-center items-center">
@@ -94,7 +154,7 @@ export default function ProfilePage() {
     return <div className="text-center text-red-500">{error}</div>;
   }
 
-  const handleTabClick = (value: "personal" | "account" | "timesheet" | "leave") => {
+  const handleTabClick = (value: "personal" | "account" | "timesheet" | "leave" | "add") => {
     setActiveTab(value);
   };
 
@@ -119,7 +179,7 @@ export default function ProfilePage() {
       <Header />
 
       <div className="container mx-auto p-4 sm:p-8" style={{ flex: 1, padding: "20px" }}>
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-8">User Profile</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-8">Hello {userMain.name}!</h1>
         
         <div className="grid gap-4 sm:gap-8 md:grid-cols-3">
           <Card className="md:col-span-1">
@@ -143,7 +203,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span>{user.email}</span>
+                  <span>{userMain.email}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-muted-foreground" />
@@ -155,28 +215,35 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Manager:</span>
-                  <span>{user.manager}</span>
+                  <span>{userMain.manager}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Pay:</span>
-                  <span>{user.pay}</span>
+                  <span>{userMain.pay}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Height:</span>
-                  <span>{user.height}</span>
+                  <span>{userMain.height}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Weight:</span>
-                  <span>{user.weight}</span>
+                  <span>{userMain.weight}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Address:</span>
-                  <span>{user.address}</span>
+                  <span>{userMain.address}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Hire Date:</span>
-                  <span>{user.hireDate}</span>
+                  <span>{userMain.hireDate}</span>
                 </div>
+                {isAdmin && (
+
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold">Leave Days:</span>
+                  <span>{userMain.leaveDays}</span>
+                </div>
+                )}
               </div>
             </CardContent>
             <CardFooter>
@@ -250,6 +317,25 @@ export default function ProfilePage() {
   >
     Leave Management
   </TabsTrigger>
+
+  {isAdmin && (
+
+
+  <TabsTrigger
+    value="add"
+    onClick={() => handleTabClick('add')}
+    style={{
+      backgroundColor: activeTab === 'add' ? '#003366' : '#8B1F25',
+      color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
+      padding: '10px 20px',
+      borderRadius: '5px',
+      transition: 'background-color 0.3s, color 0.3s',
+    }}
+  >
+    Manage Employees
+  </TabsTrigger>
+
+)}
 </TabsList>
               </CardHeader>
               <CardContent>
@@ -318,13 +404,66 @@ export default function ProfilePage() {
               </TabsContent>
                         
               <TabsContent value="leave">
-                <LeaveManagementComponent isApprover={isApprover} />
+                <LeaveManagementComponent isApprover={isAdmin} />
               </TabsContent>
+
+              {isAdmin && (
+  <TabsContent value="add">
+    <Card>
+      <CardHeader>
+        <CardTitle>Employee Directory</CardTitle>
+        <CardDescription>Manage and view all employee information</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-between items-center mb-4">
+          <Input className="max-w-sm" placeholder="Search employees..." />
+          <Button>Add Employee</Button>
+        </div>
+        <div className="space-y-4">
+          {allUsers.map((employee) => (
+            <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center space-x-4">
+                <Avatar>
+                  <AvatarFallback>{employee?.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{employee.name}</p>
+                  <p className="text-sm text-muted-foreground">{employee.role}</p>
+                </div>
+              </div>
+              <Badge>{employee.department}</Badge>
+              <Button variant="outline" className="ml-2" onClick={() => handleEmployeeClick(employee)}>
+                                Edit
+                              </Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  </TabsContent>
+)}
+
+
+
+
+              
               </CardContent>
+              
             </Tabs>
           </Card>
         </div>
       </div>
+
+
+      {isEditPopupOpen && (
+        <UserInformationForm
+          user={selectedUser} // Pass the selected user or null for new user
+          isEditMode={!!selectedUser} // Set edit mode flag based on whether a user is selected
+          onClose={() => setIsEditPopupOpen(false)} // Close the form popup
+          onUpdate={selectedUser ? handleUpdateUser : handleAddNewUser} // Pass appropriate function based on mode
+        />
+      )}
+
 
       <Footer />
     </div>
