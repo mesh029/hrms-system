@@ -1,6 +1,8 @@
 "use client";
 
 import { SetStateAction, useEffect, useState } from 'react';
+Link
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,8 +19,12 @@ import LeaveManagementComponent from '@/components/leave';
 import Footer from '@/components/footer';
 import Header from '@/components/header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@radix-ui/react-select';
-import { toast } from "@/components/ui/use-toast";
 import UserInformationForm from '../user-information/page';
+import { toast, useToast } from '@/hooks/use-toast';
+import { useRouter } from "next/router";
+import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
+import Link from 'next/link';
+
 
 
 const employees = [
@@ -34,8 +40,19 @@ interface User {
   department: string;
   // Add any additional fields your user objects have
 }
+interface Employee {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+}
+
+
+
+  
 
 export default function ProfilePage() {
+
   const [isApprover] = useState(false);
   const [showDeletionCalendar, setShowDeletionCalendar] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -44,15 +61,22 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false); // simplified hook for admin role
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
+  const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
+    const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
     { id: 2, name: 'Bob Smith', role: 'Product Manager', department: 'Product' },
     { id: 3, name: 'Charlie Brown', role: 'UX Designer', department: 'Design' },
     { id: 4, name: 'Diana Ross', role: 'HR Specialist', department: 'Human Resources' },
 
   ])
   // Fetch user details using the token
+  const { setEmployee } = useEmployee();
 
+
+  const handleEmployeeClick = (employee: { id: number, name: string }) => {
+    setEmployee(employee); // Store employee data in context
+  };
+
+    
 useEffect(() => {
   const token = localStorage.getItem("jwtToken"); // Get the token from localStorage
 
@@ -124,10 +148,15 @@ useEffect(() => {
 
 
 
-const handleEmployeeClick = (employee: SetStateAction<null>) => {
-  setSelectedUser(employee);
-  setIsEditPopupOpen(true);
+
+
+
+const handleAddNewUser = () => {
+  toast({
+    title: "Nekee!!",
+  });
 };
+
 
 const handleUpdateUser = (updatedUser: User) => {
   setAllUsers(allUsers.map(user => user.id === updatedUser.id ? updatedUser : user));
@@ -175,6 +204,7 @@ const handleUpdateUser = (updatedUser: User) => {
   }
 
   return (
+    <EmployeeProvider>
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
 
@@ -433,8 +463,15 @@ const handleUpdateUser = (updatedUser: User) => {
               </div>
               <Badge>{employee.department}</Badge>
               <Button variant="outline" className="ml-2" onClick={() => handleEmployeeClick(employee)}>
-                                Edit
+                                
+              <Link href={`/user-information?id=${employee.id}`}>
+          View {employee.name}'s Profile
+        </Link>
                               </Button>
+
+          <div onClick={() => handleEmployeeClick(employee)}>
+            {employee.name}
+          </div>
             </div>
           ))}
         </div>
@@ -454,6 +491,8 @@ const handleUpdateUser = (updatedUser: User) => {
         </div>
       </div>
 
+      <EmployeeProvider>
+
 
       {isEditPopupOpen && (
         <UserInformationForm
@@ -463,9 +502,12 @@ const handleUpdateUser = (updatedUser: User) => {
           onUpdate={selectedUser ? handleUpdateUser : handleAddNewUser} // Pass appropriate function based on mode
         />
       )}
+          </EmployeeProvider>
+
 
 
       <Footer />
     </div>
+    </EmployeeProvider>
   );
 }

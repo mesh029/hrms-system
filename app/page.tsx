@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Header from '@/components/header';
 import Footer from '@/components/footer';
+import { EmployeeProvider } from "./context/EmployeeContext";
+
 
 export default function LandingPage() {
   return (
+    <EmployeeProvider>
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
 
@@ -62,6 +65,8 @@ export default function LandingPage() {
       </main>
 
       <Footer />
+      
     </div>
+    </EmployeeProvider>
   );
 }

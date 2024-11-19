@@ -33,5 +33,3 @@ export function Toaster() {
     </ToastProvider>
   )
 }
-
-export { useToast }

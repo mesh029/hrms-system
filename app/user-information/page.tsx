@@ -5,8 +5,7 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users } from "lucide-react"
-
+import { Calendar as CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,7 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useToast } from "@/components/ui/toaster"
+import { useToast } from "@/hooks/use-toast"
+import { EmployeeProvider, useEmployee } from "../context/EmployeeContext"
+import { useSearchParams } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -44,7 +45,7 @@ const existingUsers = [
 ]
 
 interface User {
-  id: string;
+  id: number;
   name: string;
   role: string;
   department: string;
@@ -60,11 +61,23 @@ interface UserInformationFormProps {
 
 
 export default function UserInformationForm({ onClose, onUpdate, isEditMode, userId }: UserInformationFormProps) {
+  const searchParams = useSearchParams(); // Access search params
+  const id = searchParams.get('id'); 
+  const mode = searchParams.get('mode'); 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditable, setIsEditable] = useState(false);
   const [hireDate, setHireDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
+  const [userInfo, setUserInfo] = useState<any>(null);
   const[token, setToken] = useState<any>(null);
   const { toast } = useToast()
+  const {employee } = useEmployee()
+
+
+  const toggleEdit = () => {
+    setIsEditable((prev) => !prev); // Toggle edit mode
+  };
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -139,12 +152,26 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
     //}
   //}, [form.formState.isSubmitSuccessful, form.reset])
   
+  useEffect(() => {
+    if (id) {
+      // Fetch the user data based on the user id from context
+      fetch(`http://localhost:3030/api/users/${id}`)
+        .then(response => response.json())
+        .then(data => setUserInfo(data))
+        .catch(err => console.error('Error fetching user data:', err));
+    }
+  }, [employee]); // Re-run effect when user changes
+
+  // Ensure userInfo is loaded before rendering the form
+  if (!userInfo) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
         <CardTitle>User Information Form</CardTitle>
-        <CardDescription>Enter the details of the new user</CardDescription>
+        <CardDescription>Enter/Update the details of the user</CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="grid gap-6">
@@ -153,7 +180,12 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
               <Label htmlFor="name">Name *</Label>
               <div className="relative">
                 <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="name" placeholder="John Doe" className="pl-8" {...form.register("name")} />
+                <Input
+            id="email"
+            value={userInfo.name} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />
               </div>
               {form.formState.errors.name && (
                 <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
@@ -163,20 +195,53 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
               <Label htmlFor="email">Email *</Label>
               <div className="relative">
                 <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="email" placeholder="john@example.com" className="pl-8" {...form.register("email")} />
+                <div className="flex items-center">
+                <Input
+            id="email"
+            value={userInfo.email} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />
+          {isEditable ? (
+            <Input
+              id="email"
+              placeholder="john@example.com"
+              className="pl-8"
+              {...form.register('email')}
+              readOnly={!isEditable}
+            />
+          ) : (
+            <span className="pl-8">{userInfo.email}</span> // Display email when not in edit mode
+          )}
+          <button
+            type="button"
+            className="ml-2"
+            onClick={toggleEdit} // Toggle edit mode on pencil icon click
+          >
+            <Pencil className="h-4 w-4 text-muted-foreground" />
+          </button>
+          </div>
               </div>
-              {form.formState.errors.email && (
-                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
-              )}
             </div>
           </div>
+
+          <Input
+            id="email"
+            value={userInfo.email} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="role">Role *</Label>
               <div className="relative">
                 <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="role" placeholder="Software Engineer" className="pl-8" {...form.register("role")} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.role} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
               {form.formState.errors.role && (
                 <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
               )}
@@ -185,8 +250,12 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
               <Label htmlFor="department">Department *</Label>
               <div className="relative">
                 <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="department" placeholder="Engineering" className="pl-8" {...form.register("department")} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.department} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
               {form.formState.errors.department && (
                 <p className="text-sm text-red-500">{form.formState.errors.department.message}</p>
               )}
@@ -195,62 +264,12 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Hire Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !hireDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {hireDate ? format(hireDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={hireDate}
-                    onSelect={(date) => {
-                      setHireDate(date)
-                      form.setValue("hireDate", date as Date)
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              {form.formState.errors.hireDate && (
-                <p className="text-sm text-red-500">{form.formState.errors.hireDate.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>End of Hire Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) => {
-                      setEndDate(date)
-                      form.setValue("endDate", date as Date)
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+            id="email"
+            value={userInfo.hireDate} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -281,8 +300,12 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
               <Label htmlFor="manager">Manager</Label>
               <div className="relative">
                 <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="manager" placeholder="John Doe" className="pl-8" {...form.register("manager")} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.manager} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -290,22 +313,34 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
               <Label htmlFor="weight">Weight (kg)</Label>
               <div className="relative">
                 <Scale className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="weight" placeholder="70" className="pl-8" {...form.register("weight")} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.weight} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="height">Height (cm)</Label>
               <div className="relative">
                 <Ruler className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="height" placeholder="175" className="pl-8" {...form.register("height")} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.height} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="leaveDays">Leave Days *</Label>
               <div className="relative">
                 <CalendarIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="leaveDays" type="number" placeholder="20" className="pl-8" {...form.register("leaveDays", { valueAsNumber: true })} />
-              </div>
+                <Input
+            id="email"
+            value={userInfo.leaveDays} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />              </div>
               {form.formState.errors.leaveDays && (
                 <p className="text-sm text-red-500">{form.formState.errors.leaveDays.message}</p>
               )}
@@ -315,8 +350,12 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
             <Label htmlFor="address">Address *</Label>
             <div className="relative">
               <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Textarea id="address" placeholder="123 Main St, City, Country" className="pl-8 min-h-[80px]" {...form.register("address")} />
-            </div>
+              <Input
+            id="email"
+            value={userInfo.address} // Set the email value
+            className="pl-8"
+            readOnly={!isEditable} // Make the input readonly based on `isEditable`
+          />            </div>
             {form.formState.errors.address && (
               <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>
             )}
