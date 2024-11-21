@@ -100,6 +100,7 @@ useEffect(() => {
     })
     .then((userData) => {
       const userId = userData.id;
+      
 
       return fetch(`http://localhost:3030/api/users/${userId}`, {
         headers: {
@@ -430,7 +431,7 @@ const handleUpdateUser = (updatedUser: User) => {
                 </TabsContent>
                 
                 <TabsContent value="timesheet">
-                <TimesheetComponent isApprover={isApprover} />
+                <TimesheetComponent userId={userMain.id} isApprover={isApprover} />
               </TabsContent>
                         
               <TabsContent value="leave">
@@ -464,7 +465,7 @@ const handleUpdateUser = (updatedUser: User) => {
               <Badge>{employee.department}</Badge>
               <Button variant="outline" className="ml-2" onClick={() => handleEmployeeClick(employee)}>
                                 
-              <Link href={`/user-information?id=${employee.id}`}>
+              <Link href={`/user-profile?id=${employee.id}`}>
           View {employee.name}'s Profile
         </Link>
                               </Button>

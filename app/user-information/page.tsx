@@ -59,7 +59,6 @@ interface UserInformationFormProps {
   userId?: string; // optional userId if necessary
 }
 
-
 export default function UserInformationForm({ onClose, onUpdate, isEditMode, userId }: UserInformationFormProps) {
   const searchParams = useSearchParams(); // Access search params
   const id = searchParams.get('id'); 
@@ -71,13 +70,11 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
   const [userInfo, setUserInfo] = useState<any>(null);
   const[token, setToken] = useState<any>(null);
   const { toast } = useToast()
-  const {employee } = useEmployee()
-
+  const { employee } = useEmployee()
 
   const toggleEdit = () => {
     setIsEditable((prev) => !prev); // Toggle edit mode
   };
-
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -98,7 +95,6 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
   useEffect(() => {
     const token = localStorage.getItem('jwtToken'); 
     setToken(localStorage.getItem('jwtToken'));
-
   }, []);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -144,228 +140,47 @@ export default function UserInformationForm({ onClose, onUpdate, isEditMode, use
       setIsSubmitting(false);
     }
   };
-  
 
- // useEffect(() => {
-   // if (form.formState.isSubmitSuccessful) {
-     // form.reset()
-    //}
-  //}, [form.formState.isSubmitSuccessful, form.reset])
-  
   useEffect(() => {
     if (id) {
-      // Fetch the user data based on the user id from context
+      // Fetch the user data based on the user id
       fetch(`http://localhost:3030/api/users/${id}`)
         .then(response => response.json())
         .then(data => setUserInfo(data))
         .catch(err => console.error('Error fetching user data:', err));
     }
-  }, [employee]); // Re-run effect when user changes
+  }, [id]); // Re-run effect when `id` changes
 
   // Ensure userInfo is loaded before rendering the form
-  if (!userInfo) {
-    return <div>Loading...</div>;
+  if (!userInfo && !isEditMode) {
+    // If `userInfo` is not available and not in edit mode, show the form to create a new user
+    return (
+      <Card className="w-full max-w-3xl mx-auto">
+        <CardHeader>
+          <CardTitle>Create New User</CardTitle>
+        </CardHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          {/* Form Fields for creating new user */}
+          {/* All the form inputs go here */}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Creating User..." : "Submit New User Information"}
+          </Button>
+        </form>
+      </Card>
+    );
   }
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
-        <CardTitle>User Information Form</CardTitle>
-        <CardDescription>Enter/Update the details of the user</CardDescription>
+        <CardTitle>{isEditMode ? 'Edit User Information' : 'User Information Form'}</CardTitle>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <CardContent className="grid gap-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <div className="relative">
-                <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.name} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />
-              </div>
-              {form.formState.errors.name && (
-                <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <div className="relative">
-                <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <div className="flex items-center">
-                <Input
-            id="email"
-            value={userInfo.email} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />
-          {isEditable ? (
-            <Input
-              id="email"
-              placeholder="john@example.com"
-              className="pl-8"
-              {...form.register('email')}
-              readOnly={!isEditable}
-            />
-          ) : (
-            <span className="pl-8">{userInfo.email}</span> // Display email when not in edit mode
-          )}
-          <button
-            type="button"
-            className="ml-2"
-            onClick={toggleEdit} // Toggle edit mode on pencil icon click
-          >
-            <Pencil className="h-4 w-4 text-muted-foreground" />
-          </button>
-          </div>
-              </div>
-            </div>
-          </div>
-
-          <Input
-            id="email"
-            value={userInfo.email} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="role">Role *</Label>
-              <div className="relative">
-                <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.role} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-              {form.formState.errors.role && (
-                <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="department">Department *</Label>
-              <div className="relative">
-                <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.department} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-              {form.formState.errors.department && (
-                <p className="text-sm text-red-500">{form.formState.errors.department.message}</p>
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Hire Date *</Label>
-              <Input
-            id="email"
-            value={userInfo.hireDate} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="reportsTo">Reports To *</Label>
-              <Controller
-                name="reportsTo"
-                control={form.control}
-                render={({ field }) => (
-                  <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value}>                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select supervisor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {existingUsers.map((user) => (
-                        <SelectItem key={user.id} value={String(user.id)}>
-                          {user.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {form.formState.errors.reportsTo && (
-                <p className="text-sm text-red-500">{form.formState.errors.reportsTo.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="manager">Manager</Label>
-              <div className="relative">
-                <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.manager} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="weight">Weight (kg)</Label>
-              <div className="relative">
-                <Scale className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.weight} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="height">Height (cm)</Label>
-              <div className="relative">
-                <Ruler className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.height} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="leaveDays">Leave Days *</Label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-            id="email"
-            value={userInfo.leaveDays} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />              </div>
-              {form.formState.errors.leaveDays && (
-                <p className="text-sm text-red-500">{form.formState.errors.leaveDays.message}</p>
-              )}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
-            <div className="relative">
-              <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-            id="email"
-            value={userInfo.address} // Set the email value
-            className="pl-8"
-            readOnly={!isEditable} // Make the input readonly based on `isEditable`
-          />            </div>
-            {form.formState.errors.address && (
-              <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Creating User..." : "Submit User Information"}
-          </Button>
-        </CardFooter>
+        {/* Form Fields for editing user */}
+        {/* Populate form fields with `userInfo` if available */}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Submit User Information"}
+        </Button>
       </form>
     </Card>
   )

@@ -153,3 +153,67 @@ export const login = async (req, res) => {
         console.log(error)
     }
 };
+
+// timesheetController.js
+
+
+// Assuming you have a route to handle submitting a timesheet for a month
+export const submitTimesheet = async (req, res) => {
+    try {
+        const { userId, year, month, entries, status } = req.body;
+
+        // Validate entries
+        if (!entries || !Array.isArray(entries) || entries.length === 0) {
+            return res.status(400).json({ error: 'Invalid timesheet entries' });
+        }
+
+        // Ensure all days of the month are accounted for
+        const daysInMonth = new Date(year, month, 0).getDate();
+        //if (entries.length !== daysInMonth) {
+         //   return res.status(400).json({ error: 'Entries count does not match the number of days in the month' });
+        //}
+
+        // Create the Timesheet
+        const timesheet = await prisma.timesheet.create({
+            data: {
+                userId,
+                year,
+                month,
+                status,
+                entries: {
+                    create: entries.map(entry => ({
+                        date: new Date(entry.date), // Store each date correctly
+                        hours: parseFloat(entry.hours), // Store hours as float
+                        type: entry.type, // 'Regular', 'Holiday', etc.
+                        description: entry.description, // Optional description
+                    }))
+                }
+            }
+        });
+
+        res.status(201).json({
+            message: 'Timesheet submitted successfully',
+            timesheet: timesheet,
+        });
+    } catch (error) {
+        console.error('Error submitting timesheet:', error);
+        res.status(500).json({ error: 'Error submitting timesheet' });
+    }
+};
+
+
+export const getTimesheetsByUser = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const timesheets = await prisma.timesheet.findMany({
+            where: { userId: parseInt(userId, 10) },
+            orderBy: { date: 'asc' }, // Sort by date
+        });
+
+        res.json(timesheets);
+    } catch (error) {
+        console.error('Error fetching timesheets:', error);
+        res.status(500).json({ error: 'Error fetching timesheets' });
+    }
+};

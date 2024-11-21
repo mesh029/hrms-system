@@ -13,10 +13,11 @@ interface TimesheetEntry {
 }
 
 interface TimesheetComponentProps {
+  userId: number; // Ensure userId is passed as a number
   isApprover: boolean;
 }
 
-const TimesheetComponent: React.FC<TimesheetComponentProps> = () => {
+const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isApprover }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([
     { type: 'Regular', hours: Array(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate()).fill('0.0'), description: '' },
@@ -76,15 +77,127 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = () => {
     setTimesheetEntries(updatedEntries);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const parsedEntries = timesheetEntries.map(entry => ({
-      ...entry,
-      hours: entry.hours.map(hour => parseFloat(hour)), // Parse as float on submit
+      type: entry.type,
+      hours: entry.hours.map(hour => parseFloat(hour)), // Parse as float
     }));
-    console.log('Submitting timesheet:', { status, entries: parsedEntries });
-    // Add your submit logic here (e.g., save to a database or API)
+
+   const handleSubmit = async () => {
+  const parsedEntries = timesheetEntries.map((entry, index) => ({
+    date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), index + 1).toISOString(),
+    hours: entry.hours.map(hour => parseFloat(hour)),
+    type: entry.type,
+    description: entry.description,
+  }));
+
+  try {
+    const response = await fetch('http://localhost:3030/api/timesheets', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({
+        userId,
+        year: currentMonth.getFullYear(),
+        month: currentMonth.getMonth() + 1, // +1 because months are 0-indexed
+        entries: parsedEntries,
+        status,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('Timesheet submitted:', data);
+      alert('Timesheet submitted successfully!');
+    } else {
+      const error = await response.json();
+      console.error('Error:', error);
+      alert('Error submitting timesheet.');
+    }
+  } catch (err) {
+    console.error('Error submitting timesheet:', err);
+    alert('Network error.');
+  }
+};
+
+
+
+
+
+    try {
+      const response = await fetch('http://localhost:3030/api/timesheets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`, // Include the token
+        },
+        body: JSON.stringify({
+          userId, // Make sure the userId is included
+          entries: parsedEntries,
+          status, // Include status (e.g., "Draft" or "Ready")
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Timesheet submitted:', data);
+        alert('Timesheet submitted successfully!');
+      } else {
+        const error = await response.json();
+        console.error('Error:', error);
+        alert('Error submitting timesheet.');
+      }
+    } catch (err) {
+      console.error('Error submitting timesheet:', err);
+      alert('Network error.');
+    }
   };
 
+
+  const handleSubmit2 = async () => {
+    const parsedEntries = timesheetEntries.map((entry, index) => ({
+      date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), index + 1).toISOString(),
+      hours: entry.hours.map(hour => parseFloat(hour)),
+      type: entry.type,
+      description: entry.description,
+    }));
+  
+    try {
+      const response = await fetch('http://localhost:3030/api/timesheets'  , {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          userId,
+          year: currentMonth.getFullYear(),
+          month: currentMonth.getMonth() + 1, // +1 because months are 0-indexed
+          entries: parsedEntries,
+          status,
+        }),
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Timesheet submitted:', data);
+        alert('Timesheet submitted successfully!');
+      } else {
+        const error = await response.json();
+        console.log('Error:', error);
+        alert('Error submitting timesheet.');
+      }
+    } catch (err) {
+      console.error('Error submitting timesheet:', err);
+      alert('Network error.');
+    }
+  };
+  
+
+
+  
   // Calculate total hours
   const calculateTotalHours = () => {
     return timesheetEntries.reduce((total, entry) => {
@@ -94,7 +207,13 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = () => {
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
+    const Sdate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1);
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1);
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date:', date);
+      return null; // Skip invalid dates
+    }
+
     const dayName = date.toLocaleString('default', { weekday: 'short' });
     const isWeekend = date.getDay() === 0 || date.getDay() === 6; // 0: Sunday, 6: Saturday
     const dayStyle = isWeekend ? 'text-red-500' : '';
@@ -130,9 +249,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Time Code</TableHead>
-              {daysArray.map((day, index) => (
-                <TableHead key={index}>{day}</TableHead>
-              ))}
+              {daysArray.map((day, index) => day && <TableHead key={index}>{day}</TableHead>)}
               <TableHead>Actions</TableHead> {/* Column for Delete action */}
             </TableRow>
           </TableHeader>
@@ -187,7 +304,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = () => {
         <Button variant="outline" onClick={handleAddRow}>
           Add Time Code
         </Button>
-        <Button variant="outline" onClick={handleSubmit}>
+        <Button variant="outline" onClick={handleSubmit2}>
           Submit Timesheet
         </Button>
       </div>

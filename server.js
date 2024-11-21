@@ -1,6 +1,6 @@
 import express from 'express';
 import { adminMiddleware, authenticateJWT, authenticateToken } from './server/middlewares/authMiddleWare.js';
-import { createUser, getUsers, getUserById, updateUser, deleteUser, login } from './server/controllers/userController.js';
+import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser } from './server/controllers/userController.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
@@ -21,11 +21,19 @@ app.post('/login', login);
 // Middleware to authenticate JWT
 //app.use(authenticateJWT); 
 // Routes
-app.post('/api/users', adminMiddleware, createUser); // Ensure only admin can create users
+app.post('/api/users', createUser); // Ensure only admin can create users
 app.get('/api/users', getUsers);
 app.get('/api/users/:id', getUserById);
 app.put('/api/users/:id', updateUser);
 app.delete('/api/users/:id', deleteUser);
+
+app.post('/api/users', adminMiddleware, createUser);
+
+app.post('/api/timesheets', submitTimesheet);
+
+// Get timesheets for a user
+app.get('/api/timesheets/:userId', getTimesheetsByUser);
+
 
 app.get('/api/user/me', authenticateToken,
 (req, res) => {
