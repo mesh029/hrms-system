@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { UserCircle, Bell, Calendar } from "lucide-react"
+import Link from 'next/link';
 
 export default function Header() {
   return (
@@ -14,7 +15,9 @@ export default function Header() {
           <div className="flex flex-wrap justify-center md:justify-end gap-4">
             <Button variant="secondary" className="bg-white text-blue-900 hover:bg-gray-100">
               <UserCircle className="mr-2 h-4 w-4" />
-              My Profile
+              <Link href={`/`}>
+          Log out          
+          </Link>
             </Button>
             <Button variant="secondary" className="bg-white text-blue-900 hover:bg-gray-100">
               <Bell className="mr-2 h-4 w-4" />

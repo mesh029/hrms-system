@@ -1,7 +1,6 @@
 "use client";
 
 import { SetStateAction, useEffect, useState } from 'react';
-Link
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Camera, Lock, LogOut, Mail, Phone, User } from 'lucide-react';
 
+
 import TimesheetComponent from "@/components/timesheet";
 import LeaveManagementComponent from '@/components/leave';
 import Footer from '@/components/footer';
@@ -24,6 +24,7 @@ import { toast, useToast } from '@/hooks/use-toast';
 import { useRouter } from "next/router";
 import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
 import Link from 'next/link';
+import AdminLeaveManagementComponent from '@/components/leaveAdmin';
 
 
 
@@ -375,11 +376,11 @@ const handleUpdateUser = (updatedUser: User) => {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" defaultValue={user.name} />
+                        <Input id="name" defaultValue={userMain.name} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" defaultValue={user.email} />
+                        <Input id="email" type="email" defaultValue={userMain.email} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone</Label>
@@ -387,7 +388,7 @@ const handleUpdateUser = (updatedUser: User) => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="department">Department</Label>
-                        <Select defaultValue={user.department}>
+                        <Select defaultValue={userMain.department}>
                           <SelectTrigger id="department">
                             <SelectValue placeholder="Select department" />
                           </SelectTrigger>
@@ -435,7 +436,9 @@ const handleUpdateUser = (updatedUser: User) => {
               </TabsContent>
                         
               <TabsContent value="leave">
-                <LeaveManagementComponent isApprover={isAdmin} />
+                <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
+                <AdminLeaveManagementComponent isApprover={isAdmin} userId={userMain.id} />
+                
               </TabsContent>
 
               {isAdmin && (
@@ -448,7 +451,12 @@ const handleUpdateUser = (updatedUser: User) => {
       <CardContent>
         <div className="flex justify-between items-center mb-4">
           <Input className="max-w-sm" placeholder="Search employees..." />
-          <Button>Add Employee</Button>
+          <Button>
+          <Link href={`/user-profile`}>
+          Add Employee
+          </Link>
+
+          </Button>
         </div>
         <div className="space-y-4">
           {allUsers.map((employee) => (

@@ -157,50 +157,79 @@ export const login = async (req, res) => {
 // timesheetController.js
 
 
-// Assuming you have a route to handle submitting a timesheet for a month
 export const submitTimesheet = async (req, res) => {
     try {
         const { userId, year, month, entries, status } = req.body;
 
+        // Validate request body
+        if (!userId || !year || !month || !entries || !status) {
+            return res.status(400).json({ error: 'Missing required fields in the request body.' });
+        }
+
         // Validate entries
-        if (!entries || !Array.isArray(entries) || entries.length === 0) {
-            return res.status(400).json({ error: 'Invalid timesheet entries' });
+        if (!Array.isArray(entries) || entries.length === 0) {
+            return res.status(400).json({ error: 'Invalid timesheet entries: Entries must be an array with at least one entry.' });
         }
 
         // Ensure all days of the month are accounted for
         const daysInMonth = new Date(year, month, 0).getDate();
-        //if (entries.length !== daysInMonth) {
-         //   return res.status(400).json({ error: 'Entries count does not match the number of days in the month' });
-        //}
+        
+        // Optional: Ensure entries match the number of days in the month
+        if (entries.length !== daysInMonth) {
+            return res.status(400).json({
+                error: `Entries count does not match the number of days in the month. Expected ${daysInMonth} entries, but got ${entries.length}.`
+            });
+        }
+
+        // Iterate through entries and validate individual fields
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            if (!entry.type || !['Regular', 'Holiday', 'Other'].includes(entry.type)) {
+                return res.status(400).json({
+                    error: `Invalid entry type at index ${i}. Expected one of 'Regular', 'Holiday', or 'Other'.`
+                });
+            }
+
+            if (isNaN(parseFloat(entry.hours))) {
+                return res.status(400).json({
+                    error: `Invalid hours at index ${i}. Expected a valid number, but got: ${entry.hours}`
+                });
+            }
+        }
 
         // Create the Timesheet
-        const timesheet = await prisma.timesheet.create({
-            data: {
-                userId,
-                year,
-                month,
-                status,
-                entries: {
-                    create: entries.map(entry => ({
-                        date: new Date(entry.date), // Store each date correctly
-                        hours: parseFloat(entry.hours), // Store hours as float
-                        type: entry.type, // 'Regular', 'Holiday', etc.
-                        description: entry.description, // Optional description
-                    }))
+        let timesheet;
+        try {
+            timesheet = await prisma.timesheet.create({
+                data: {
+                    userId,
+                    year,
+                    month,
+                    status,
+                    entries: {
+                        create: entries.map(entry => ({
+                            date: new Date(entry.date), // Convert date string to Date object
+                            hours: parseFloat(entry.hours), // Ensure hours are stored as a float
+                            type: entry.type, // 'Regular', 'Holiday', etc.
+                            description: entry.description || '', // Optional description, default to empty string if undefined
+                        }))
+                    }
                 }
-            }
-        });
+            });
+        } catch (dbError) {
+            console.error('Error creating timesheet in database:', dbError);
+            return res.status(500).json({ error: 'Database error: Unable to create timesheet.' });
+        }
 
         res.status(201).json({
             message: 'Timesheet submitted successfully',
             timesheet: timesheet,
         });
     } catch (error) {
-        console.error('Error submitting timesheet:', error);
-        res.status(500).json({ error: 'Error submitting timesheet' });
+        console.error('Error in submitTimesheet function:', error);
+        res.status(500).json({ error: `Internal server error: ${error.message || 'Error submitting timesheet'}` });
     }
 };
-
 
 export const getTimesheetsByUser = async (req, res) => {
     const { userId } = req.params;
@@ -217,3 +246,107 @@ export const getTimesheetsByUser = async (req, res) => {
         res.status(500).json({ error: 'Error fetching timesheets' });
     }
 };
+
+export const createLeaveRequest = async (req, res) => {
+    try {
+        const { userId, startDate, endDate, reason } = req.body;
+
+        // Validate request body
+        if (!userId || !startDate || !endDate || !reason) {
+            return res.status(400).json({ error: "Missing required fields in the request body." });
+        }
+
+        // Validate dates
+        if (new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({ error: "Start date must be earlier than or equal to end date." });
+        }
+
+        // Create leave request
+        const leave = await prisma.leave.create({
+            data: {
+                userId,
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                status: "Pending", // Default status for new requests
+                reason,
+            },
+        });
+
+        res.status(201).json({ message: "Leave request created successfully.", leave });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to create leave request." });
+    }
+};
+
+export const getLeaveRequests = async (req, res) => {
+    try {
+        // Fetch all leave requests without any filters
+        const leaveRequests = await prisma.leave.findMany({
+            include: { user: true }, // Include user details for context
+        });
+
+        res.status(200).json({ message: "Leave requests retrieved successfully.", leaveRequests });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to retrieve leave requests." });
+    }
+};
+
+export const updateLeaveStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Validate request body
+        if (!id || !status) {
+            return res.status(400).json({ error: "Missing required fields in the request body." });
+        }
+
+        // Validate status value
+        const validStatuses = ["Pending", "Approved", "Denied"];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: `Invalid status value. Must be one of: ${validStatuses.join(", ")}` });
+        }
+
+        // Update leave status
+        const updatedLeave = await prisma.leave.update({
+            where: { id: parseInt(id) },
+            data: { status },
+        });
+
+        res.status(200).json({ message: "Leave status updated successfully.", updatedLeave });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to update leave status." });
+    }
+};
+
+
+
+
+export const getUserLeaves = async (req, res) => {
+    try {
+      const { userId } = req.params;
+  
+      // Validate the input
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required." });
+      }
+  
+      // Fetch the leave requests for the specified user
+      const leaves = await prisma.leave.findMany({
+        where: {
+          userId: parseInt(userId, 10), // Convert userId to an integer
+        },
+        include: {
+          user: true, // Optionally include user details
+        },
+      });
+  
+      return res.status(200).json(leaves);
+    } catch (error) {
+      console.error("Error fetching user leaves:", error);
+      return res.status(500).json({ error: "An error occurred while fetching leave requests." });
+    }
+  };
