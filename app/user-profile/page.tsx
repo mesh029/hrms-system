@@ -6,8 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, parseISO } from "date-fns"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users, FileText, Edit2, Save, X, Clock, Calendar, Send } from 'lucide-react'
-
+import { CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users, FileText, Edit2, Save, X, Clock, Calendar, Send, ArrowLeft, Phone, Hospital, Map } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +23,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import Footer from "@/components/footer"
 import Header from "@/components/header"
+import AdminLeaveManagementComponent from "@/components/leaveAdmin"
+import Link from "next/link"
+
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -38,6 +41,10 @@ const formSchema = z.object({
   weight: z.string().optional(),
   height: z.string().optional(),
   leaveDays: z.number().min(0, { message: "Leave days must be a positive number." }),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number cannot exceed 15 digits"),
+  facility: z.string().min(1, { message: "Facility is required." }),
+  location: z.string().min(1, { message: "Location is required." }),
+
 })
 
 type UserDocument = {
@@ -85,9 +92,23 @@ export default function UserProfilePage() {
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([])
   const [timesheets, setTimesheets] = useState<Timesheet[]>(sampleTimesheets)
   const [leaves, setLeaves] = useState<Leave[]>(sampleLeaves)
+  const [managers, setManagers] = useState([]); // Store filtered managers
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
+
+  const locations = [
+    "Kisumu",
+    "Nyamira",
+    "Kisii",
+    "Migori",
+    "Nyamira",
+    "Kakamega",
+    "Vihiga",
+  ];
+  
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -103,8 +124,13 @@ export default function UserProfilePage() {
       weight: "",
       height: "",
       leaveDays: 0,
+      location: "",
+      phone: "",
+      facility:""
     },
   })
+  const { register, handleSubmit, formState, setValue } = form; // Destructure necessary methods from form
+  const { errors } = formState;
 
   useEffect(() => {
     const id = searchParams.get("id")
@@ -135,6 +161,53 @@ export default function UserProfilePage() {
     }
   }
 
+
+  useEffect(() => {
+    const token = localStorage.getItem("jwtToken");
+    setToken(token)
+
+
+    if (!token) {
+      setError("No token found");
+      setLoading(false);
+      return;
+    }
+
+    const fetchManagers = async () => {
+      try {
+        const response = await fetch("http://localhost:3030/api/users", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+
+        const allUsers = await response.json();
+
+        // Filter users with roles 'admin' or 'approver'
+        const filteredManagers = allUsers.filter((user: any) =>
+          ["admin", "approver"].includes(user.role.toLowerCase())
+        );
+
+        setManagers(filteredManagers);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message); // Extract the error message
+        } else {
+          setError("An unknown error occurred");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchManagers();
+  }, []);
+
   const fetchUserDocuments = async (id: string) => {
     try {
       const response = await fetch(`/api/users/${id}/documents`)
@@ -157,6 +230,7 @@ export default function UserProfilePage() {
       const response = await fetch(`http://localhost:3030/api/users/${userId}`, {
         method: "PUT",
         headers: {
+            "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(values),
@@ -188,9 +262,11 @@ export default function UserProfilePage() {
     setIsSubmitting(true)
     try {
       // For creating a new user, the endpoint should be the "create user" route
+      console.log("heres your token", token)
       const response = await fetch('http://localhost:3030/api/users', {
         method: 'POST', // Change to POST for creating a new user
         headers: {
+            "Authorization": `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(values), // Send form data as the request body
@@ -249,17 +325,31 @@ export default function UserProfilePage() {
   </>
 )}
         </div>
-        <Button onClick={toggleEditMode} variant="outline">
-          {isEditMode ? (
-            <>
-              <X className="mr-2 h-4 w-4" /> Cancel
-            </>
-          ) : (
-            <>
-              <Edit2 className="mr-2 h-4 w-4" /> Edit Profile
-            </>
-          )}
-        </Button>
+
+{isNewUser ? (
+<>
+<Link href={`/profile-page`}>
+
+<Button>
+
+<ArrowLeft className="mr-2 h-4 w-4" /> Back to Admin Panel
+  </Button>
+  </Link>
+
+</>
+) : (
+  <Button onClick={toggleEditMode} variant="outline">
+    {isEditMode ? (
+      <>
+        <X className="mr-2 h-4 w-4" /> Cancel
+      </>
+    ) : (
+      <>
+        <Edit2 className="mr-2 h-4 w-4" /> Edit Profile
+      </>
+    )}
+  </Button>
+)}
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
@@ -295,7 +385,7 @@ export default function UserProfilePage() {
                     <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="name"
-                      placeholder="John Doe"
+                      placeholder="Brian Odhiambo"
                       className="pl-8 border-blue-300 focus:border-blue-500"
                       {...form.register("name")}
                       disabled={!isEditMode}
@@ -311,7 +401,7 @@ export default function UserProfilePage() {
                     <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
-                      placeholder="john@example.com"
+                      placeholder="brian@example.com"
                       className="pl-8 border-blue-300 focus:border-blue-500"
                       {...form.register("email")}
                       disabled={!isEditMode}
@@ -328,7 +418,7 @@ export default function UserProfilePage() {
                   <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Textarea
                     id="address"
-                    placeholder="123 Main St, City, Country"
+                    placeholder="187 Mega City, Kisumu, Kenya"
                     className="pl-8 min-h-[80px] border-blue-300 focus:border-blue-500"
                     {...form.register("address")}
                     disabled={!isEditMode}
@@ -369,21 +459,27 @@ export default function UserProfilePage() {
             </TabsContent>
             <TabsContent value="employment" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="role"
-                      placeholder="Software Engineer"
-                      className="pl-8 border-blue-300 focus:border-blue-500"
-                      {...form.register("role")}
-                      disabled={!isEditMode}
-                    />
-                  </div>
-                  {form.formState.errors.role && (
-                    <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
-                  )}
+                  <Controller
+                    name="role"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
+                        <SelectTrigger className="border-blue-300 focus:border-blue-500">
+                          <SelectValue placeholder="Select User Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Marketing">Approver</SelectItem>
+                          <SelectItem value="Sales">Admin</SelectItem>
+                          <SelectItem value="HR">HRIO</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.role && <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
+                  }
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
@@ -396,9 +492,8 @@ export default function UserProfilePage() {
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Engineering">Engineering</SelectItem>
-                          <SelectItem value="Marketing">Marketing</SelectItem>
-                          <SelectItem value="Sales">Sales</SelectItem>
+                          <SelectItem value="Volunteering">Volunteering</SelectItem>
+                          <SelectItem value="Health Workers">Health Workers</SelectItem>
                           <SelectItem value="HR">Human Resources</SelectItem>
                         </SelectContent>
                       </Select>
@@ -484,34 +579,102 @@ export default function UserProfilePage() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+  <Label htmlFor="facility">Facility</Label>
+  <div className="relative">
+    <Hospital className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <Input
+      id="facility"
+      placeholder="Saint John"
+      className="pl-8 border-blue-300 focus:border-blue-500"
+      {...form.register("facility")}
+      disabled={!isEditMode}
+    />
+  </div>
+
+</div>
+
+
+<div className="space-y-2">
+        <Label htmlFor="location">Location</Label>
+          <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+
+        <div className="relative">
+        <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+
+            
+          <Controller
+            name="location"
+            control={form.control}
+            defaultValue="" // Default value if no location is selected
+            render={({ field }) => (
+              <select
+                id="location"
+                className="pl-8 border-blue-300 focus:border-blue-500"
+                {...field}
+              >
+                <option value="">Select a Location</option>
+                {locations.map((location, index) => (
+                  <option key={index} value={location}>
+                    {location}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
+        </div>
+        {errors.location && (
+          <p className="text-red-500">{errors.location.message}</p>
+        )}
+      </div>
+              <div className="space-y-2">
+  <Label htmlFor="phoneNumber">Phone Number</Label>
+  <div className="relative">
+    <Phone className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+    <Input
+      id="phoneNumber"
+      placeholder="0738238129"
+      className="pl-8 border-blue-300 focus:border-blue-500"
+      {...form.register("phone")}
+      disabled={!isEditMode}
+    />
+  </div>
+</div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="reportsTo">Reports To</Label>
-                  <div className="relative">
-                    <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="reportsTo"
-                      placeholder="Jane Doe"
-                      className="pl-8 border-blue-300 focus:border-blue-500"
-                      {...form.register("reportsTo")}
-                      disabled={!isEditMode}
-                    />
-                  </div>
-                  {form.formState.errors.reportsTo && (
+   
+<label htmlFor="reportsTo">Reports To</label>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <Controller
+          control={form.control} // Bind the Controller to the form control
+          name="reportsTo" // Specify the name of the field in the form
+          rules={{ required: "Please select a manager" }} // Optional validation
+          render={({ field }) => (
+            <select
+              id="manager"
+              className="pl-8 border-blue-300 focus:border-blue-500 w-full"
+              {...field} // Spread the field props to connect it with react-hook-form
+            >
+              <option value="" disabled>
+                Select a manager
+              </option>
+              {managers.map((manager: any) => (
+                <option key={manager.id} value={manager.id}>
+                  {manager.name}
+                </option>
+              ))}
+            </select>
+          )}
+        />
+      )}
+                     {form.formState.errors.reportsTo && (
                     <p className="text-sm text-red-500">{form.formState.errors.reportsTo.message}</p>
                   )}
+
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="manager">Manager</Label>
-                  <div className="relative">
-                    <Users className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="manager"
-                      placeholder="John Smith"
-                      className="pl-8 border-blue-300 focus:border-blue-500"
-                      {...form.register("manager")}
-                      disabled={!isEditMode}
-                    />
-                  </div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -668,6 +831,22 @@ export default function UserProfilePage() {
           </CardFooter>
         )}
       </form>
+      <div className="mb-4">
+      {Object.keys(formState.errors).length > 0 && (
+  <p className="font-semibold text-red-500">Please fix the following errors:</p>
+)}
+      <ul className="list-disc pl-5">
+        {Object.keys(formState.errors).map((fieldName) => {
+          const field = fieldName as keyof typeof formState.errors; // Type-cast the fieldName
+          return (
+            <li key={field} className="text-red-500">
+              {formState.errors[field]?.message}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+
     </Card>
     </div>
 

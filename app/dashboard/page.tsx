@@ -153,7 +153,7 @@ export default function HRMSDashboard() {
                       </Avatar>
                       <div>
                         <p className="font-medium">{employee.name}</p>
-                        <p className="text-sm text-muted-foreground">{employee.role}</p>
+                        <p className="text-sm text-muted-foreground">{employee.role} sasa</p>
                       </div>
                     </div>
                     <Badge>{employee.department}</Badge>

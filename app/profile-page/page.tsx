@@ -56,7 +56,7 @@ export default function ProfilePage() {
 
   const [isApprover] = useState(false);
   const [showDeletionCalendar, setShowDeletionCalendar] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('personal');
   const [userMain, setUser] = useState<any>(null); // to store user data
   const [loading, setLoading] = useState(true); // loading state
   const [error, setError] = useState("");
@@ -239,7 +239,7 @@ const handleUpdateUser = (updatedUser: User) => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{user.phone}</span>
+                  <span>{userMain.phone}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <CalendarIcon className="w-4 h-4 text-muted-foreground" />
@@ -453,7 +453,7 @@ const handleUpdateUser = (updatedUser: User) => {
           <Input className="max-w-sm" placeholder="Search employees..." />
           <Button>
           <Link href={`/user-profile`}>
-          Add Employee
+          Add User
           </Link>
 
           </Button>
