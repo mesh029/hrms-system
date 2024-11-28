@@ -293,21 +293,46 @@ export const getLeaveRequests = async (req, res) => {
     }
 };
 
-export const updateLeaveStatus = async (req, res) => {
+export const approveLeave = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
 
-        // Validate request body
-        if (!id || !status) {
-            return res.status(400).json({ error: "Missing required fields in the request body." });
+        // Validate that `id` exists
+        if (!id) {
+            return res.status(400).json({ error: "Leave ID is required." });
         }
 
-        // Validate status value
-        const validStatuses = ["Pending", "Approved", "Denied"];
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ error: `Invalid status value. Must be one of: ${validStatuses.join(", ")}` });
+        // Update leave status to "Approved"
+        const updatedLeave = await prisma.leave.update({
+            where: { id: parseInt(id) },
+            data: { status: "Approved" },
+        });
+
+        res.status(200).json({
+            message: "Leave approved successfully.",
+            updatedLeave,
+        });
+    } catch (error) {
+        console.error("Error approving leave request:", error);
+        res.status(500).json({ error: "Failed to approve leave request." });
+    }
+};
+
+export const updateLeaveStatus = async (req, res) => {
+    try {
+        const { id, action } = req.params;
+        // `action` should be "approve" or "deny"
+
+        // Validate inputs
+        if (!id) {
+            return res.status(400).json({ error: "Leave ID is required." });
         }
+        if (!action || !["approve", "denied"].includes(action.toLowerCase())) {
+            return res.status(400).json({ error: "Invalid action. Allowed values: 'approve' or 'deny'." });
+        }
+
+        // Determine status based on the action
+        const status = action.toLowerCase() === "approve" ? "Approved" : "Denied";
 
         // Update leave status
         const updatedLeave = await prisma.leave.update({
@@ -315,13 +340,41 @@ export const updateLeaveStatus = async (req, res) => {
             data: { status },
         });
 
-        res.status(200).json({ message: "Leave status updated successfully.", updatedLeave });
+        res.status(200).json({
+            message: `Leave ${action}d successfully.`,
+            updatedLeave,
+        });
     } catch (error) {
-        console.error(error);
+        console.error("Error updating leave status:", error);
         res.status(500).json({ error: "Failed to update leave status." });
     }
 };
 
+
+export const denyLeave = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validate that `id` exists
+        if (!id) {
+            return res.status(400).json({ error: "Leave ID is required." });
+        }
+
+        // Update leave status to "Denied"
+        const updatedLeave = await prisma.leave.update({
+            where: { id: parseInt(id) },
+            data: { status: "Denied" },
+        });
+
+        res.status(200).json({
+            message: "Leave denied successfully.",
+            updatedLeave,
+        });
+    } catch (error) {
+        console.error("Error denying leave request:", error);
+        res.status(500).json({ error: "Failed to deny leave request." });
+    }
+};
 
 
 

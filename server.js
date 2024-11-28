@@ -1,6 +1,6 @@
 import express from 'express';
 import { adminMiddleware, authenticateJWT, authenticateToken } from './server/middlewares/authMiddleWare.js';
-import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves } from './server/controllers/userController.js';
+import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus } from './server/controllers/userController.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
@@ -29,7 +29,11 @@ app.delete('/api/users/:id', deleteUser);
 
 
 app.post('/api/timesheets', submitTimesheet);
+app.patch('/api/leaves/:id/approve', approveLeave);
+app.patch('/api/leaves/:id/deny', denyLeave);
+
 app.post('/api/leaves', createLeaveRequest);
+app.patch('/api/leaves/:id/:action', updateLeaveStatus);
 
 
 // Get timesheets for a user

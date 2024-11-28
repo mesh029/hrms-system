@@ -19,7 +19,6 @@ import LeaveManagementComponent from '@/components/leave';
 import Footer from '@/components/footer';
 import Header from '@/components/header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@radix-ui/react-select';
-import UserInformationForm from '../user-information/page';
 import { toast, useToast } from '@/hooks/use-toast';
 import { useRouter } from "next/router";
 import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
@@ -499,19 +498,6 @@ const handleUpdateUser = (updatedUser: User) => {
           </Card>
         </div>
       </div>
-
-      <EmployeeProvider>
-
-
-      {isEditPopupOpen && (
-        <UserInformationForm
-          user={selectedUser} // Pass the selected user or null for new user
-          isEditMode={!!selectedUser} // Set edit mode flag based on whether a user is selected
-          onClose={() => setIsEditPopupOpen(false)} // Close the form popup
-          onUpdate={selectedUser ? handleUpdateUser : handleAddNewUser} // Pass appropriate function based on mode
-        />
-      )}
-          </EmployeeProvider>
 
 
 

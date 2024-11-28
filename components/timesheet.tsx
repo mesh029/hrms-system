@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import React, { useState, useEffect } from "react";
 
 interface TimesheetEntry {
-  type: "Regular" | "Holiday" | "Other";
+  type: "Regular" | "Holiday" | "Sick" | "Annual";
   hours: string[]; // Keep as string to manage input value directly
   description: string;
 }
@@ -19,7 +19,7 @@ interface TimesheetComponentProps {
 interface ParsedEntry {
   date: string;
   hours: number;
-  type: "Regular" | "Holiday" | "Other";
+  type: "Regular" | "Holiday" | "Sick" | "Annual";
   description: string;
 }
 
@@ -65,7 +65,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     setTimesheetEntries(updatedEntries);
   };
 
-  const handleTypeChange = (typeIndex: number, newType: "Regular" | "Holiday" | "Other") => {
+  const handleTypeChange = (typeIndex: number, newType: "Regular" | "Holiday" | "Sick" | "Annual") => {
     // Check if this day already has the same type of entry
     const hasEntryForDay = timesheetEntries.some(
       (entry) => entry.type === newType && entry.hours.some((hour, index) => hour !== "0.0")
@@ -211,14 +211,15 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
             {timesheetEntries.map((entry, typeIndex) => (
               <TableRow key={typeIndex}>
                 <TableCell>
-                  <Select onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Other")}>
+                  <Select onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Sick" | "Annual")}>
                     <SelectTrigger>
                       <SelectValue>{entry.type}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Regular">Regular</SelectItem>
                       <SelectItem value="Holiday">Holiday</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      <SelectItem value="Sick">Sick</SelectItem>
+                      <SelectItem value="Annual">Annual</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>

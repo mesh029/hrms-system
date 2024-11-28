@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -26,7 +26,7 @@ import Header from "@/components/header"
 import AdminLeaveManagementComponent from "@/components/leaveAdmin"
 import Link from "next/link"
 
-
+import dynamic from 'next/dynamic';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -77,6 +77,12 @@ const sampleTimesheets: Timesheet[] = [
   { id: "5", date: "2023-05-05", hoursWorked: 8, project: "Project B" },
 ]
 
+const statusVariantMap = {
+  Approved: "default", // Map "success" to "default" or any existing variant
+  Pending: "secondary", // Map "warning" to "secondary"
+  Rejected: "destructive",
+};
+
 const sampleLeaves: Leave[] = [
   { id: "1", startDate: "2023-04-10", endDate: "2023-04-12", type: "Vacation", status: "Approved" },
   { id: "2", startDate: "2023-05-15", endDate: "2023-05-15", type: "Sick Leave", status: "Approved" },
@@ -96,8 +102,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);  const [token, setToken] = useState<string | null>(null);  const { toast } = useToast()
 
   const locations = [
     "Kisumu",
@@ -131,20 +136,27 @@ export default function UserProfilePage() {
   })
   const { register, handleSubmit, formState, setValue } = form; // Destructure necessary methods from form
   const { errors } = formState;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setSearchParams(params);  // Set searchParams when on client-side
+    }
+  }, []);
 
   useEffect(() => {
-    const id = searchParams.get("id")
-    setUserId(id)
+    if (searchParams !== null) {  // Null check to ensure searchParams is available
+      const id = searchParams.get("id");
+      setUserId(id);
 
-    if (id) {
-      fetchUserData(id)
-      //fetchUserDocuments(id)
-    }else{
-        setIsEditMode(true)
-        setNewUser(true)
+      if (id) {
+        // Start loading data when 'id' is available
+        fetchUserData(id);
+      } else {
+        // Handle new user logic
+        setLoading(false);
+      }
     }
-  }, [searchParams])
-
+  }, [searchParams]); 
   const fetchUserData = async (id: string) => {
     try {
       const response = await fetch(`http://localhost:3030/api/users/${id}`)
@@ -303,7 +315,13 @@ export default function UserProfilePage() {
     setIsEditMode(!isEditMode)
   }
 
+  if (loading) {
+    return <div>Loading...</div>;  // Render loading state while waiting for the data
+  }
+
+
   return (
+    <Suspense fallback={<div>Loading user profile...</div>}>
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
     <Header/>
     <div className="container mx-auto p-4 sm:p-8" style={{ flex: 1, padding: "20px" }}>
@@ -768,7 +786,7 @@ export default function UserProfilePage() {
                           <TableCell>{format(parseISO(leave.endDate), "PPP")}</TableCell>
                           <TableCell>{leave.type}</TableCell>
                           <TableCell>
-                            <Badge variant={leave.status === 'Approved' ? 'success' : leave.status === 'Pending' ? 'warning' : 'destructive'}>
+                            <Badge>
                               {leave.status}
                             </Badge>
                           </TableCell>
@@ -852,6 +870,7 @@ export default function UserProfilePage() {
 
     <Footer/>
     </div>
+    </Suspense>
 
   )
 }
