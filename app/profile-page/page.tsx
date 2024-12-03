@@ -25,7 +25,7 @@ import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
 import Link from 'next/link';
 import AdminLeaveManagementComponent from '@/components/leaveAdmin';
 
-
+import * as XLSX from "xlsx"; // For exporting to Excel
 
 const employees = [
   { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
@@ -38,6 +38,8 @@ interface User {
   name: string;
   role: string;
   department: string;
+  location: string;
+  reportsTo: string;
   // Add any additional fields your user objects have
 }
 interface Employee {
@@ -62,11 +64,10 @@ export default function ProfilePage() {
   const [isAdmin, setIsAdmin] = useState(false); // simplified hook for admin role
   const [isEditPopupOpen, setIsEditPopupOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
-    const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
-    { id: 2, name: 'Bob Smith', role: 'Product Manager', department: 'Product' },
-    { id: 3, name: 'Charlie Brown', role: 'UX Designer', department: 'Design' },
-    { id: 4, name: 'Diana Ross', role: 'HR Specialist', department: 'Human Resources' },
-
+  const [searchQuery, setSearchQuery] = useState<any>("");
+  const [selectedRole, setSelectedRole] = useState<any>("");
+  const [selectedLocation, setSelectedLocation] = useState<any>("");
+    const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering', location:"Kakamega", reportsTo: "Meshack Ariri" },
   ])
   // Fetch user details using the token
   const { setEmployee } = useEmployee();
@@ -75,6 +76,9 @@ export default function ProfilePage() {
   const handleEmployeeClick = (employee: { id: number, name: string }) => {
     setEmployee(employee); // Store employee data in context
   };
+
+
+  
 
     
 useEffect(() => {
@@ -147,6 +151,45 @@ useEffect(() => {
     });
 }, []);
 
+const filteredUsers = allUsers.filter((user) => {
+  const matchesSearch =
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.department.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesRole = selectedRole ? user.role === selectedRole : true;
+  const matchesLocation = selectedLocation
+    ? user.location === selectedLocation
+    : true;
+
+  return matchesSearch && matchesRole && matchesLocation;
+});
+const filteredUsers2 = allUsers.filter((user) => {
+  const matchesSearch =
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.department.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesRole = selectedRole ? user.role === selectedRole : true;
+  const matchesLocation = selectedLocation
+    ? user.location === selectedLocation
+    : true;
+  const matchesManager =
+    userMain?.role === "Admin" || user.reportsTo === userMain?.name;
+
+  return matchesSearch && matchesRole && matchesLocation && matchesManager;
+});
+  // Export to Excel
+  const exportToExcel = () => {
+    const data = filteredUsers2.map((user) => ({
+      Name: user.name,
+      Role: user.role,
+      Department: user.department,
+      Location: user.location,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Employees");
+
+    XLSX.writeFile(workbook, "Employees.xlsx");
+  };
 
 
 
@@ -201,7 +244,7 @@ const handleUpdateUser = (updatedUser: User) => {
     height: "5'6\"",
     weight: "130 lbs",
     address: "123 Main St, Cityville, ST 12345",
-    bio: "Passionate software engineer with 5 years of experience in web development.",
+    bio: "Passionate.",
   }
 
   return (
@@ -246,7 +289,7 @@ const handleUpdateUser = (updatedUser: User) => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Manager:</span>
-                  <span>{userMain.manager}</span>
+                  <span>{userMain.reportsTo}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="font-bold">Pay:</span>
@@ -383,28 +426,17 @@ const handleUpdateUser = (updatedUser: User) => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Phone</Label>
-                        <Input id="phone" type="tel" defaultValue={user.phone} />
+                        <Input id="phone" type="tel" defaultValue={userMain.phone} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="department">Department</Label>
-                        <Select defaultValue={userMain.department}>
-                          <SelectTrigger id="department">
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Engineering">Engineering</SelectItem>
-                            <SelectItem value="Marketing">Marketing</SelectItem>
-                            <SelectItem value="Sales">Sales</SelectItem>
-                            <SelectItem value="HR">Human Resources</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="email">Department</Label>
+                        <Input id="email" type="email" defaultValue={userMain.department} />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="bio">Bio</Label>
                       <Textarea id="bio" defaultValue={user.bio} />
                     </div>
-                    <Button type="submit">Save Changes</Button>
                   </form>
                 </TabsContent>
                 
@@ -436,7 +468,7 @@ const handleUpdateUser = (updatedUser: User) => {
                         
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
-                <AdminLeaveManagementComponent isApprover={isAdmin} userId={userMain.id} />
+                <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
                 
               </TabsContent>
 
@@ -449,16 +481,49 @@ const handleUpdateUser = (updatedUser: User) => {
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center mb-4">
-          <Input className="max-w-sm" placeholder="Search employees..." />
-          <Button>
+        <Input
+            className="max-w-sm"
+            placeholder="Search employees..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />          <Button>
           <Link href={`/user-profile`}>
           Add User
           </Link>
 
           </Button>
+
+        </div>
+
+        <div className="flex justify-start space-x-4 mb-4">
+          <select
+            className="border rounded px-2 py-1"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value)}
+          >
+            <option value="">Filter by Role</option>
+            {[...new Set(allUsers.map((u) => u.role))].map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <select
+            className="border rounded px-2 py-1"
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+          >
+            <option value="">Filter by Location</option>
+            {[...new Set(allUsers.map((u) => u.location))].map((location) => (
+              <option key={location} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
+          <Button onClick={exportToExcel}>Download Excel</Button>
         </div>
         <div className="space-y-4">
-          {allUsers.map((employee) => (
+          {filteredUsers2.map((employee) => (
             <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center space-x-4">
                 <Avatar>

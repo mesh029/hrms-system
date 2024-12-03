@@ -15,29 +15,36 @@ interface LeaveRequest {
 
 interface AdminLeaveManagementComponentProps {
   userId: number;
-  userRole: string; // Role of the logged-in user (e.g., "admin", "manager")
+  userRole: string;
+  userName: string; // Role of the logged-in user (e.g., "admin", "manager")
 }
 
-const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps> = ({ userId, userRole }) => {
+const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps> = ({ userId, userRole, userName }) => {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [userNames, setUserNames] = useState<{ [key: number]: string }>({});
+  const [userManagers, setUserManagers] = useState<{ [key: number]: string}>({});
   const [loading, setLoading] = useState(true);
   const [expandedLeave, setExpandedLeave] = useState<number | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false); // To control the popup state
   const [selectedLeaveId, setSelectedLeaveId] = useState<number | null>(null);
 
-  const [managerMap, setManagerMap] = useState<{ [key: number]: number | null }>({}); // Mapping user IDs to managers
-
   useEffect(() => {
     const fetchLeaveRequests = async () => {
+      const token = localStorage.getItem("jwtToken");
+      
+      if (!token) {
+        console.error("Token is missing. Please log in.");
+        return;
+      }
+  
       try {
         const response = await fetch(`http://localhost:3030/api/leaves`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
-
+  
         if (response.ok) {
           const data = await response.json();
           setLeaveRequests(data.leaveRequests);
@@ -48,28 +55,35 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         console.error("Error fetching leave requests:", error);
       }
     };
-
+  
     const fetchUserData = async () => {
+      const token = localStorage.getItem("jwtToken");
+  
+      if (!token) {
+        console.error("Token is missing. Please log in.");
+        return;
+      }
+  
       try {
         const response = await fetch(`http://localhost:3030/api/users`, {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
-
+  
         if (response.ok) {
           const users = await response.json();
           const userNamesData: { [key: number]: string } = {};
-          const managerData: { [key: number]: number | null } = {};
-
+          const userManagersData: { [key: number]: string } = {};
+  
           users.forEach((user: any) => {
             userNamesData[user.id] = user.name;
-            managerData[user.id] = user.manager || null;
+            userManagersData[user.id] = user.reportsTo;
           });
-
+  
           setUserNames(userNamesData);
-          setManagerMap(managerData);
+          setUserManagers(userManagersData);
           setLoading(false);
         } else {
           console.error("Failed to fetch user data.");
@@ -78,20 +92,10 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
         console.error("Error fetching user data:", error);
       }
     };
-
+  
     fetchLeaveRequests();
     fetchUserData();
   }, []);
-
-  useEffect(() => {
-    if (userRole === "admin") {
-      setLeaveRequests((prev) => prev); // Admin sees all leaves
-    } else {
-      setLeaveRequests((prev) =>
-        prev.filter((request) => managerMap[request.userId] === userId) // Non-admin sees only leaves for their managed users
-      );
-    }
-  }, [userRole, managerMap, userId]);
 
   const handleApprove = async (id: number) => {
     setSelectedLeaveId(id);
@@ -122,7 +126,6 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
           )
         );
       } else {
-
         console.log(`Failed to ${action} leave request.`, response);
       }
       setIsConfirmOpen(false);
@@ -144,9 +147,14 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
     setExpandedLeave((prev) => (prev === id ? null : id));
   };
 
-  const approvedLeaves = leaveRequests.filter((request) => request.status === "Approved");
-  const pendingLeaves = leaveRequests.filter((request) => request.status === "Pending");
-  const rejectedLeaves = leaveRequests.filter((request) => request.status === "Denied");
+  const filteredLeaves = leaveRequests.filter(
+    (request) =>
+      userRole === "Admin" || userManagers[request.userId] === userName
+  );
+
+  const approvedLeaves = filteredLeaves.filter((request) => request.status === "Approved");
+  const pendingLeaves = filteredLeaves.filter((request) => request.status === "Pending");
+  const rejectedLeaves = filteredLeaves.filter((request) => request.status === "Denied");
 
   return (
     <>
@@ -158,6 +166,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
           <p>Loading...</p>
         ) : (
           <>
+            {/* Approved Leaves Section */}
             <h2 className="text-xl font-bold mb-4">Approved Leaves</h2>
             <div className="overflow-x-auto mb-6 max-h-72">
               <Table className="min-w-full">
@@ -175,9 +184,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                   {approvedLeaves.map((request) => (
                     <React.Fragment key={request.id}>
                       <TableRow>
-                        <TableCell>
-                          <span className="text-green-500">🟢</span>
-                        </TableCell>
+                        <TableCell>🟢</TableCell>
                         <TableCell>{userNames[request.userId] || "Unknown"}</TableCell>
                         <TableCell>{request.id}</TableCell>
                         <TableCell>{formatDate(request.startDate)}</TableCell>
@@ -203,6 +210,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
               </Table>
             </div>
 
+            {/* Pending Leaves Section */}
             <h2 className="text-xl font-bold mb-4">Pending Leaves</h2>
             <div className="overflow-x-auto mb-6 max-h-72">
               <Table className="min-w-full">
@@ -227,16 +235,14 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                         <TableCell>{formatDate(request.startDate)}</TableCell>
                         <TableCell>{formatDate(request.endDate)}</TableCell>
                         <TableCell>
-                          {request.status === "Pending" && (
-                            <>
-                              <Button onClick={() => handleApprove(request.id)} className="mr-2">
-                                Approve
-                              </Button>
-                              <Button onClick={() => handleReject(request.id)} variant="destructive">
-                                Reject
-                              </Button>
-                            </>
-                          )}
+                          <>
+                            <Button onClick={() => handleApprove(request.id)} className="mr-2">
+                              Approve
+                            </Button>
+                            <Button onClick={() => handleReject(request.id)} variant="destructive">
+                              Reject
+                            </Button>
+                          </>
                         </TableCell>
                         <TableCell>
                           <button onClick={() => toggleExpand(request.id)}>
@@ -256,12 +262,10 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                     </React.Fragment>
                   ))}
                 </TableBody>
-
-
               </Table>
             </div>
 
-
+            {/* Rejected Leaves Section */}
             <h2 className="text-xl font-bold mb-4">Rejected Leaves</h2>
             <div className="overflow-x-auto mb-6 max-h-72">
               <Table className="min-w-full">
@@ -279,7 +283,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                   {rejectedLeaves.map((request) => (
                     <React.Fragment key={request.id}>
                       <TableRow>
-                        <TableCell>🔴</TableCell>
+                        <TableCell>❌</TableCell>
                         <TableCell>{userNames[request.userId] || "Unknown"}</TableCell>
                         <TableCell>{request.id}</TableCell>
                         <TableCell>{formatDate(request.startDate)}</TableCell>
@@ -292,7 +296,7 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                       </TableRow>
                       {expandedLeave === request.id && (
                         <TableRow>
-                          <TableCell colSpan={7}>
+                          <TableCell colSpan={6}>
                             <div className="p-4 bg-gray-100 rounded">
                               <p><strong>Reason:</strong> {request.reason}</p>
                             </div>
@@ -302,13 +306,13 @@ const AdminLeaveManagementComponent: React.FC<AdminLeaveManagementComponentProps
                     </React.Fragment>
                   ))}
                 </TableBody>
-
-
               </Table>
             </div>
           </>
         )}
       </CardContent>
+
+
 
       {/* Confirmation Dialog */}
       <Dialog.Root open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>

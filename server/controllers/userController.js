@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 // Create a new user
 export const createUser = async (req, res) => {
-    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays } = req.body;
+    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays, phone, facility, pay } = req.body;
 
     // Generate a default password for the new user
 const generateDefaultPassword = () => {
@@ -41,9 +41,12 @@ try {
             weight,
             height,
             leaveDays,
+            phone,
+            facility,
             // Set password reset fields to null at creation
             passwordResetToken: null,
             passwordResetTokenExpiry: null,
+            pay
         },
     });
 

@@ -44,6 +44,8 @@ const formSchema = z.object({
   phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number cannot exceed 15 digits"),
   facility: z.string().min(1, { message: "Facility is required." }),
   location: z.string().min(1, { message: "Location is required." }),
+  pay: z.number().min(4, { message: "Pay must be atleast 4 digits" }),
+
 
 })
 
@@ -92,8 +94,8 @@ const sampleLeaves: Leave[] = [
 
 export default function UserProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [isNewUser, setNewUser] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(true)
+  const [isNewUser, setNewUser] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [userDocuments, setUserDocuments] = useState<UserDocument[]>([])
   const [timesheets, setTimesheets] = useState<Timesheet[]>(sampleTimesheets)
@@ -131,7 +133,8 @@ export default function UserProfilePage() {
       leaveDays: 0,
       location: "",
       phone: "",
-      facility:""
+      facility:"",
+      pay: 5000
     },
   })
   const { register, handleSubmit, formState, setValue } = form; // Destructure necessary methods from form
@@ -147,10 +150,11 @@ export default function UserProfilePage() {
     if (searchParams !== null) {  // Null check to ensure searchParams is available
       const id = searchParams.get("id");
       setUserId(id);
-
       if (id) {
         // Start loading data when 'id' is available
         fetchUserData(id);
+        setNewUser(false)
+        setIsEditMode(false)
       } else {
         // Handle new user logic
         setLoading(false);
@@ -252,6 +256,7 @@ export default function UserProfilePage() {
 
         console.log("something went wrong")
 
+
       toast({
         title: "Success",
         description: "User updated successfully",
@@ -298,6 +303,8 @@ export default function UserProfilePage() {
       alert("USer Created!!!")
   
       setIsEditMode(false) // Switch to view mode after successful creation
+      setNewUser(false)
+
     } catch (error) {
       console.error('Error creating new user:', error)
       toast({
@@ -483,43 +490,56 @@ export default function UserProfilePage() {
                   <Controller
                     name="role"
                     control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
-                        <SelectTrigger className="border-blue-300 focus:border-blue-500">
-                          <SelectValue placeholder="Select User Role" />
+                    defaultValue={form.getValues("role") || ""}
+                    render={({ field, fieldState: { error } }) => (
+                      <>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ""} // Controlled component value
+                        disabled={!isEditMode}
+                      >
+                        <SelectTrigger className={`border-blue-300 focus:border-blue-500 ${error ? "border-red-500" : ""}`}>
+                          <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Marketing">Approver</SelectItem>
-                          <SelectItem value="Sales">Admin</SelectItem>
-                          <SelectItem value="HR">HRIO</SelectItem>
+                        <SelectItem value="approver">Approver</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="hrio">HRIO</SelectItem>
                         </SelectContent>
                       </Select>
+                    </>
                     )}
                   />
                   {form.formState.errors.role && <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
                   }
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Controller
-                    name="department"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
-                        <SelectTrigger className="border-blue-300 focus:border-blue-500">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Volunteering">Volunteering</SelectItem>
-                          <SelectItem value="Health Workers">Health Workers</SelectItem>
-                          <SelectItem value="HR">Human Resources</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.department && <p className="text-sm text-red-500">{form.formState.errors.department.message}</p>
-                  }
-                </div>
+  <Label htmlFor="department">Department</Label>
+  <Controller
+    name="department"
+    control={form.control}
+    defaultValue={form.getValues("department") || ""} // Ensure a default value
+    render={({ field, fieldState: { error } }) => (
+      <>
+        <Select
+          onValueChange={field.onChange}
+          value={field.value || ""} // Controlled component value
+          disabled={!isEditMode}
+        >
+          <SelectTrigger className={`border-blue-300 focus:border-blue-500 ${error ? "border-red-500" : ""}`}>
+            <SelectValue placeholder="Select department" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Volunteering">Volunteering</SelectItem>
+            <SelectItem value="Health Workers">Health Workers</SelectItem>
+            <SelectItem value="HR">Human Resources</SelectItem>
+          </SelectContent>
+        </Select>
+        {error && <p className="text-sm text-red-500">{error.message}</p>}
+      </>
+    )}
+  />
+</div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -620,26 +640,30 @@ export default function UserProfilePage() {
         <div className="relative">
         <Map className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
 
-            
-          <Controller
-            name="location"
-            control={form.control}
-            defaultValue="" // Default value if no location is selected
-            render={({ field }) => (
-              <select
-                id="location"
-                className="pl-8 border-blue-300 focus:border-blue-500"
-                {...field}
-              >
-                <option value="">Select a Location</option>
-                {locations.map((location, index) => (
-                  <option key={index} value={location}>
-                    {location}
-                  </option>
-                ))}
-              </select>
-            )}
-          />
+<Controller
+  control={form.control}
+  name="location"
+  rules={{ required: "Please select a location" }}
+  defaultValue={form.getValues("location") || ""} // Set the default value from the database or any fallback
+  render={({ field }) => (
+    <select
+      id="location"
+      className="pl-8 border-blue-300 focus:border-blue-500 w-full"
+      {...field}
+    >
+      <option value="" disabled>
+        Select a location
+      </option>
+      {locations.map((location, index) => (
+        <option key={index} value={location}>
+          {location}
+        </option>
+      ))}
+    </select>
+  )}
+/>
+
+
         </div>
         {errors.location && (
           <p className="text-red-500">{errors.location.message}</p>
@@ -679,7 +703,7 @@ export default function UserProfilePage() {
                 Select a manager
               </option>
               {managers.map((manager: any) => (
-                <option key={manager.id} value={manager.id}>
+                <option key={manager.id} value={manager.name}>
                   {manager.name}
                 </option>
               ))}

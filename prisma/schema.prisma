@@ -24,7 +24,7 @@ model User {
   password                String
   role                    String
   department              String
-  pay                     String    @default("Null")
+  pay                     Int?
   hireDate                DateTime  @default(now())
   endDate                 DateTime?  // Optional
   reportsTo               String?       // Assuming it references another User
