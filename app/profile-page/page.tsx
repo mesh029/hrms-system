@@ -25,7 +25,10 @@ import { EmployeeProvider, useEmployee } from '../context/EmployeeContext';
 import Link from 'next/link';
 import AdminLeaveManagementComponent from '@/components/leaveAdmin';
 
+
 import * as XLSX from "xlsx"; // For exporting to Excel
+import TimesheetApprovalComponent from '@/components/timeSheetApproval';
+import AdminTimesheetApprovalComponent from '@/components/adminTimesheetApproval';
 
 const employees = [
   { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering' },
@@ -49,6 +52,11 @@ interface Employee {
   department: string;
 }
 
+interface DeleteConfirmationModalProps {
+  user: User;
+  onCancel: () => void;
+  onConfirm: (userId: number) => void; 
+}
 
 
   
@@ -66,6 +74,8 @@ export default function ProfilePage() {
   const [selectedUser, setSelectedUser] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState<any>("");
   const [selectedRole, setSelectedRole] = useState<any>("");
+  const [deleteUser, setDeleteUser] =useState<any>(null);  // Holds the user to delete
+  const [refreshKey, setRefreshKey] = useState(0); // A state to trigger refresh
   const [selectedLocation, setSelectedLocation] = useState<any>("");
     const [allUsers, setAllUsers] = useState([ { id: 1, name: 'Alice Johnson', role: 'Software Engineer', department: 'Engineering', location:"Kakamega", reportsTo: "Meshack Ariri" },
   ])
@@ -78,7 +88,6 @@ export default function ProfilePage() {
   };
 
 
-  
 
     
 useEffect(() => {
@@ -149,7 +158,32 @@ useEffect(() => {
     .finally(() => {
       setLoading(false); // Stop loading in case of success or error
     });
-}, []);
+}, [refreshKey]);
+  
+const handleDeleteUser = async (id: number) => {
+  try {
+    const response = await fetch(`http://localhost:3030/api/users/${id}`, {
+      method: "DELETE",
+    });
+
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error deleting user:", errorData.message);
+      alert("Failed to delete user.");
+      return;
+    }
+
+    setRefreshKey((prevKey) => prevKey + 1);
+    alert("User deleted successfully.");
+    setDeleteUser(null); // Close the modal
+    // Optionally refresh the user list
+    // fetchUsers();
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    alert("An error occurred while deleting the user.");
+  }
+};
 
 const filteredUsers = allUsers.filter((user) => {
   const matchesSearch =
@@ -246,6 +280,25 @@ const handleUpdateUser = (updatedUser: User) => {
     address: "123 Main St, Cityville, ST 12345",
     bio: "Passionate.",
   }
+
+  const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ user, onCancel, onConfirm }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg p-6 space-y-4 shadow-lg max-w-md w-full">
+        <h2 className="text-xl font-semibold text-gray-900">Confirm Deletion</h2>
+        <p className="text-gray-700">
+          Are you sure you want to delete <strong>{user.name}</strong>? This action cannot be undone.
+        </p>
+        <div className="flex justify-end space-x-4">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={() => onConfirm(user.id)}>
+            Delete
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <EmployeeProvider>
@@ -464,11 +517,14 @@ const handleUpdateUser = (updatedUser: User) => {
                 
                 <TabsContent value="timesheet">
                 <TimesheetComponent userId={userMain.id} isApprover={isApprover} />
+                <TimesheetApprovalComponent userId={userMain.id} userRole={userMain.role}/>
+
               </TabsContent>
                         
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
                 <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
+                <AdminTimesheetApprovalComponent timesheetId={1}/>
                 
               </TabsContent>
 
@@ -523,31 +579,48 @@ const handleUpdateUser = (updatedUser: User) => {
           <Button onClick={exportToExcel}>Download Excel</Button>
         </div>
         <div className="space-y-4">
-          {filteredUsers2.map((employee) => (
-            <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarFallback>{employee?.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{employee.name}</p>
-                  <p className="text-sm text-muted-foreground">{employee.role}</p>
-                </div>
-              </div>
-              <Badge>{employee.department}</Badge>
-              <Button variant="outline" className="ml-2" onClick={() => handleEmployeeClick(employee)}>
-                                
-              <Link href={`/user-profile?id=${employee.id}`}>
+  {filteredUsers2.map((employee) => (
+    <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
+      <div className="flex items-center space-x-4">
+        <Avatar>
+          <AvatarFallback>
+            {employee?.name.split(' ').map((n) => n[0]).join('')}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium">{employee.name}</p>
+          <p className="text-sm text-muted-foreground">{employee.role}</p>
+        </div>
+      </div>
+      <Badge>{employee.department}</Badge>
+      <Button variant="outline" className="ml-2">
+        <Link href={`/user-profile?id=${employee.id}`}>
           View {employee.name}'s Profile
         </Link>
-                              </Button>
+      </Button>
+      {userMain.role === "Admin" && (
+        <Button
+          variant="destructive"
+          className="ml-2"
+          onClick={() => setDeleteUser(employee)}
+        >
+          Delete
+        </Button>
+      )}
+    </div>
+  ))}
 
-          <div onClick={() => handleEmployeeClick(employee)}>
-            {employee.name}
-          </div>
-            </div>
-          ))}
-        </div>
+  {/* Confirmation Modal */}
+  {deleteUser && (
+    <DeleteConfirmationModal
+      user={deleteUser}
+      onCancel={() => setDeleteUser(null)}
+      onConfirm={handleDeleteUser}
+    />
+  )}
+</div>
+
+
       </CardContent>
     </Card>
   </TabsContent>

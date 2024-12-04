@@ -282,6 +282,73 @@ export const createLeaveRequest = async (req, res) => {
     }
 };
 
+export const getTimesheets = async (req, res) => {
+    try {
+        // Fetch all leave requests without any filters
+        const timeSheets = await prisma.timesheet.findMany({
+            include: { user: true }, // Include user details for context
+        });
+
+        res.status(200).json({ message: "Timesheets retrieved successfully.", timeSheets });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to retrieve timesheet requests." });
+    }
+};
+
+export const getTimesheet = async (req, res) => {
+    try {
+        // Get the timesheetId from request params
+        const { id } = req.params;
+
+        // Fetch the timesheet by the provided id
+        const timeSheet = await prisma.timesheet.findUnique({
+            where: { id: parseInt(id) }, // Filter by the provided timesheet ID
+            include: { user: true }, // Include user details for context
+        });
+
+        if (!timeSheet) {
+            return res.status(404).json({ error: "Timesheet not found." });
+        }
+
+        res.status(200).json({ message: "Timesheet retrieved successfully.", timeSheet });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to retrieve timesheet." });
+    }
+};
+
+export const getTimesheetEntry= async (req, res) => {
+    try {
+        const { timesheetId } = req.params;
+
+        // Validate that `timesheetId` exists
+        if (!timesheetId) {
+            return res.status(400).json({ error: "Timesheet ID is required." });
+        }
+
+        // Fetch the timesheet entries based on the timesheet ID
+        const timesheetEntries = await prisma.timesheetEntry.findMany({
+            where: { timesheetId: parseInt(timesheetId) },
+        });
+
+        // If no entries found
+        if (timesheetEntries.length === 0) {
+            return res.status(404).json({ error: "No timesheet entries found for the given Timesheet ID." });
+        }
+
+        res.status(200).json({
+            message: "Timesheet entries fetched successfully.",
+            timesheetEntries,
+        });
+    } catch (error) {
+        console.error("Error fetching timesheet entries:", error);
+        res.status(500).json({ error: "Failed to fetch timesheet entries." });
+    }
+};
+
+
+
 export const getLeaveRequests = async (req, res) => {
     try {
         // Fetch all leave requests without any filters
