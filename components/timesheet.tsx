@@ -24,14 +24,45 @@ interface ParsedEntry {
 }
 
 
-
 const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isApprover }) => {
+
+  const [holidaysAdded, setHolidaysAdded] = useState(false);
+  const [kenyaHolidays, setKenyaHolidays] = useState<string[]>([]);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [timesheetEntries, setTimesheetEntries] = useState<TimesheetEntry[]>([
     { type: "Regular", hours: [], description: "" },
   ]);
   const [status, setStatus] = useState<"Draft" | "Ready">("Draft"); 
 
+  const isWeekend = (dayIndex: number) => {
+    // Days of the week: 0 (Sunday) - 6 (Saturday)
+    const dayOfWeek = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayIndex + 1).getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6; // Sunday (0) or Saturday (6)
+  };
+
+  // Load initial state from local storage
+  useEffect(() => {
+    const savedTimesheet = localStorage.getItem("timesheetEntries");
+    const savedStatus = localStorage.getItem("timesheetStatus");
+
+    if (savedTimesheet) {
+      setTimesheetEntries(JSON.parse(savedTimesheet));
+    }
+
+    if (savedStatus) {
+      setStatus(savedStatus as "Draft" | "Ready");
+    } else {
+      generateTimesheetEntries();
+    }
+  }, []);
+
+  // Save timesheet and status to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("timesheetEntries", JSON.stringify(timesheetEntries));
+    localStorage.setItem("timesheetStatus", status);
+  }, [timesheetEntries, status]);
+
+  
   useEffect(() => {
     generateTimesheetEntries();
   }, [currentMonth]);
@@ -43,22 +74,40 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     ]);
   };
 
+  
   const handleHoursChange = (typeIndex: number, dayIndex: number, value: string) => {
     const formattedValue = value.match(/^\d*\.?\d{0,2}/)?.[0] || "0.0";
     const updatedEntries = [...timesheetEntries];
     updatedEntries[typeIndex].hours[dayIndex] = formattedValue; 
     setTimesheetEntries(updatedEntries);
   };
-
-  const handleAddRow = () => {
+  const handleAddRow = (type: "Regular" | "Holiday" | "Sick" | "Annual", holidays: string[] = []) => {
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  
+    // Create the new row
     const newEntry: TimesheetEntry = {
-      type: "Regular",
-      hours: Array(daysInMonth).fill("0.0"),
-      description: "",
+      type: type,
+      hours: Array(daysInMonth).fill("0.0"), // Fill all days with "0.0"
+      description: type === "Holiday" ? `National Holiday` : "",
     };
+  
+    if (type === "Holiday") {
+      // Fill holiday days with predefined values from holidays array
+      holidays.forEach((holiday) => {
+        const holidayDay = parseInt(holiday.split("-")[2], 10); // Extract the day from holiday date (e.g., "12" from "2024-12-12")
+        const holidayIndex = holidayDay - 1; // Convert to zero-based index
+  
+        // Check if the holiday index is valid
+        if (holidayIndex >= 0 && holidayIndex < newEntry.hours.length) {
+          newEntry.hours[holidayIndex] = "8.5"; // Mark holiday with 8.5 hours
+        }
+      });
+    }
+  
+    // Add the new row to the timesheet entries
     setTimesheetEntries((prevEntries) => [...prevEntries, newEntry]);
   };
+  
 
   const handleDeleteRow = (index: number) => {
     const updatedEntries = timesheetEntries.filter((_, idx) => idx !== index);
@@ -68,7 +117,7 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
   const handleTypeChange = (typeIndex: number, newType: "Regular" | "Holiday" | "Sick" | "Annual") => {
     // Check if this day already has the same type of entry
     const hasEntryForDay = timesheetEntries.some(
-      (entry) => entry.type === newType && entry.hours.some((hour, index) => hour !== "0.0")
+      (entry) => entry.type === newType && entry.hours.some((hour) => hour !== "0.0")
     );
 
     if (!hasEntryForDay || timesheetEntries[typeIndex].type === newType) {
@@ -78,48 +127,48 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     }
   };
   const handleSubmit = async () => {
-    const parsedEntries: ParsedEntry[] = []; // To store the final parsed entries
-    const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate(); // Get the days in the current month
-  
-    // Set to track unique day entries (so no duplicates)
-    const uniqueDays = new Set<string>();
-  
-    // Loop over each entry (one per row in the table)
-    timesheetEntries.forEach((entry) => {
-      // Loop through each day of the month (1-based index)
-      for (let dayIndex = 1; dayIndex <= daysInMonth; dayIndex++) {
-        const dayValue = entry.hours[dayIndex - 1];
-  
-        // Only add to parsedEntries if hours are filled (non-zero or non-empty)
-        if (dayValue !== "0.0" && dayValue.trim() !== "") {
-          const entryDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayIndex).toLocaleDateString("en-CA");
-  
-          // Ensure no duplicate entries for the same day
-          if (!uniqueDays.has(entryDate)) {
-            uniqueDays.add(entryDate); // Mark this day as processed
-            parsedEntries.push({
-              date: entryDate,
-              hours: parseFloat(dayValue), // Convert the string hours to a number
-              type: entry.type,
-              description: entry.description || "", // Ensure the description is not undefined
-            });
-          }
-        }
-      }
-    });
-  
-    // Debugging: Check how many entries have been collected
-    console.log("Total entries:", parsedEntries.length);
-    console.log("Expected entries:", parsedEntries.length);
-    console.log("Parsed entries:", parsedEntries);
-  
-    // Proceed only if entries exist after filtering
-    if (parsedEntries.length === 0) {
-      alert("No valid timesheet entries found. Please fill in the hours for the selected days.");
+    if (status !== "Ready") {
+      alert("Please change the timesheet status to 'Ready' before submitting.");
       return;
     }
   
-    // Proceed with the API call if entries exist
+    const parsedEntries: ParsedEntry[] = [];
+    const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+    const uniqueDays = new Set<string>();
+  
+    // Loop through all timesheet entries
+    timesheetEntries.forEach((entry) => {
+      entry.hours.forEach((dayValue, dayIndex) => {
+        const currentDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayIndex + 1);
+        const dayOfWeek = currentDay.getDay();
+        const entryDate = currentDay.toLocaleDateString("en-CA");
+  
+        // Check if this day is a weekend or not
+        const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+  
+        // Check if it's a holiday
+        const isHolidayDay = kenyaHolidays.some(
+          (holiday) => holiday === currentDay.toISOString().split("T")[0]
+        );
+  
+        // Skip weekends unless they are explicitly included (e.g., holidays)
+        if (isWeekendDay && !isHolidayDay) return;
+  
+        // Include valid days with non-zero hours and ensure no duplicate entries for the same day
+        if (dayValue !== "0.0" && dayValue.trim() !== "" && !uniqueDays.has(entryDate)) {
+          uniqueDays.add(entryDate);
+          parsedEntries.push({
+            date: entryDate,
+            hours: parseFloat(dayValue),
+            type: entry.type,
+            description: entry.description || "",
+          });
+        }
+      });
+    });
+  
+    console.log("Parsed Entries:", parsedEntries);
+  
     try {
       const response = await fetch("http://localhost:3030/api/timesheets", {
         method: "POST",
@@ -158,6 +207,31 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
   
   
   
+  
+  
+  
+  // Function to calculate weekdays (Monday to Friday) in a given month
+  function getWeekdaysInMonth(date: Date): number {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    let weekdaysCount = 0;
+  
+    // Loop through all days in the month and count weekdays
+    for (let day = 1; day <= new Date(year, month + 1, 0).getDate(); day++) {
+      const currentDay = new Date(year, month, day);
+      const dayOfWeek = currentDay.getDay();
+      
+      // Count weekdays (Monday to Friday)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        weekdaysCount++;
+      }
+    }
+  
+    return weekdaysCount;
+  }
+  
+  
+  
 
   const calculateTotalHours = () => {
     return timesheetEntries.reduce((total, entry) => {
@@ -180,13 +254,33 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
     );
   });
 
+// Example usage: Add a holiday row using the existing function
+const addHolidayRow = () => {
+  const kenyaHolidays = [
+    "2024-12-12", // Example holiday
+    "2024-12-25", // Example holiday
+    "2024-12-26", // Example holiday
+    "2024-12-31", // Example holiday
+  ];
+
+  setKenyaHolidays(kenyaHolidays)
+  // Use the handleAddRow function to add a holiday row
+  handleAddRow("Holiday", kenyaHolidays);
+};
+  useEffect(() => {
+    if (!holidaysAdded) {
+      addHolidayRow(); // Add the holiday rows once
+      setHolidaysAdded(true); // Mark as added to prevent future additions
+    }
+  }, [timesheetEntries, holidaysAdded]); // Ensure it only runs when necessary
+  
   return (
     <div className="space-y-4">
       <span className="text-lg font-semibold">
         {currentMonth.toLocaleString("default", { month: "long" })} {currentMonth.getFullYear()}
       </span>
 
-      <Select onValueChange={(value) => setStatus(value as "Draft" | "Ready")}>
+      <Select value={status}  onValueChange={(value) => setStatus(value as "Draft" | "Ready")}>
         <SelectTrigger>
           <SelectValue>{status}</SelectValue>
         </SelectTrigger>
@@ -211,9 +305,9 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
             {timesheetEntries.map((entry, typeIndex) => (
               <TableRow key={typeIndex}>
                 <TableCell>
-                  <Select onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Sick" | "Annual")}>
+                  <Select value={entry.type} onValueChange={(value) => handleTypeChange(typeIndex, value as "Regular" | "Holiday" | "Sick" | "Annual")}>
                     <SelectTrigger>
-                      <SelectValue>{entry.type}</SelectValue>
+                      <SelectValue>{entry.type} </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Regular">Regular</SelectItem>
@@ -223,17 +317,48 @@ const TimesheetComponent: React.FC<TimesheetComponentProps> = ({ userId, isAppro
                     </SelectContent>
                   </Select>
                 </TableCell>
-                {entry.hours.map((hour, dayIndex) => (
-                  <TableCell key={dayIndex}>
-                    <Input
-                      type="text"
-                      value={hour}
-                      onChange={(e) => handleHoursChange(typeIndex, dayIndex, e.target.value)}
-                      placeholder="0.0"
-                      className="w-16 h-8 text-sm text-center"
-                    />
-                  </TableCell>
-                ))}
+                {entry.hours.map((hour, dayIndex) => {
+  const isHoliday = entry.type === "Holiday";
+  const isWeekendDay = isWeekend(dayIndex); // Assuming you have this utility function
+  
+  // Check if the current day is a holiday
+  const isHolidayDay = kenyaHolidays.some((holiday) => {
+    const holidayDay = parseInt(holiday.split("-")[2], 10); // Extract the day from holiday date
+    return holidayDay - 1 === dayIndex; // Check if this is the current holiday
+  });
+
+  // Disable input for holidays and weekends for all rows
+  const isHolidayOrWeekend = isHoliday || isWeekendDay || isHolidayDay;
+  
+  // Check if the field is empty (if the hour is not filled or is the default placeholder value)
+  const isRequired = !hour || hour === "0.0"; // If the hour is not filled or is the default placeholder value
+  
+  // Should highlight empty fields in red except for holiday days
+  const shouldHighlight = !isHolidayDay && !isHolidayOrWeekend && isRequired;
+
+  return (
+    <TableCell key={dayIndex}>
+      <Input
+        type="text"
+        value={hour}
+        onChange={(e) => handleHoursChange(typeIndex, dayIndex, e.target.value)}
+        placeholder="0.0"
+        className="w-16 h-8 text-sm text-center"
+        disabled={isHolidayOrWeekend} // Disable input for holidays and weekends
+        style={{
+          backgroundColor: isHolidayDay
+            ? "#ffeb3b"  // Yellow background for holidays
+            : isWeekendDay
+            ? "lightgrey"  // Light grey for weekends
+            : "white", // White background for other days
+          border: shouldHighlight ? "1px solid #ff6666" : "none", // Red border for empty fields (except holidays)
+        }}
+      />
+    </TableCell>
+  );
+})}
+
+
                 <TableCell>
                   <Button variant="outline" onClick={() => handleDeleteRow(typeIndex)}>
                     Delete

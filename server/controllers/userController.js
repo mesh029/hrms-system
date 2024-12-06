@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 
 // Create a new user
 export const createUser = async (req, res) => {
-    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays, phone, facility, pay } = req.body;
+    const { name, email, password, role, department, address, hireDate, endDate, reportsTo, manager, weight, height, leaveDays, phone, facility, pay, title } = req.body;
 
     // Generate a default password for the new user
 const generateDefaultPassword = () => {
@@ -175,15 +175,22 @@ export const submitTimesheet = async (req, res) => {
         }
 
         // Ensure all days of the month are accounted for
-        const daysInMonth = new Date(year, month, 0).getDate();
-        
-        // Optional: Ensure entries match the number of days in the month
-        if (entries.length !== daysInMonth) {
-            return res.status(400).json({
-                error: `Entries count does not match the number of days in the month. Expected ${daysInMonth} entries, but got ${entries.length}.`
-            });
-        }
+        // Get the total days in the month
+const daysInMonth = new Date(year, month, 0).getDate();
 
+// Calculate the weekdays (excluding weekends)
+const weekdaysInMonth = Array.from({ length: daysInMonth }, (_, dayIndex) => {
+  const currentDay = new Date(year, month - 1, dayIndex + 1); // Use month - 1 for 0-based month
+  const dayOfWeek = currentDay.getDay();
+  return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude weekends (Sunday = 0, Saturday = 6)
+}).filter(Boolean).length; // Filter out weekends and count weekdays
+
+// Optional: Ensure entries match the number of weekdays in the month
+if (entries.length !== weekdaysInMonth) {
+  return res.status(400).json({
+    error: `Entries count does not match the number of weekdays in the month. Expected ${weekdaysInMonth} entries, but got ${entries.length}.`
+  });
+}
         // Iterate through entries and validate individual fields
         for (let i = 0; i < entries.length; i++) {
             const entry = entries[i];
@@ -346,6 +353,75 @@ export const getTimesheetEntry= async (req, res) => {
         res.status(500).json({ error: "Failed to fetch timesheet entries." });
     }
 };
+
+
+// Approve timesheet logic
+export const approveTimesheet = async (req, res) => {
+    try {
+      const { id } = req.params; // Get the timesheet ID from the request parameters
+      const { role } = req.query; // Get the approver's role from the query params
+      const { approverName, approverTitle } = req.body; // Get the approver's name and title from the request body
+  
+      // Validate that `id`, `role`, `approverName`, and `approverTitle` are provided
+      if (!id || !role || !approverName || !approverTitle) {
+        return res.status(400).json({ error: "All fields (id, role, approverName, approverTitle) are required." });
+      }
+  
+      // Fetch the current timesheet from the database
+      const timesheet = await prisma.timesheet.findUnique({
+        where: { id: parseInt(id) },
+      });
+  
+      if (!timesheet) {
+        return res.status(404).json({ error: "Timesheet not found." });
+      }
+  
+      // Ensure approvers array exists and add the new approver
+      const updatedApprovers = [
+        ...(timesheet.approvers || []), // Initialize as empty array if approvers is null
+        { name: approverName, title: approverTitle }
+      ];
+  
+      // Determine the status based on the role
+      let updatedStatus;
+      switch (role) {
+        case 'incharge':
+          updatedStatus = "Approved(FI)";
+          break;
+        case 'hr':
+          updatedStatus = "Approved(HR)";
+          break;
+        case 'po':
+          updatedStatus = "Approved(PO)";
+          break;
+        case 'padm':
+          updatedStatus = "Approved(PADM)";
+          break;
+        default:
+          updatedStatus = "Ready"; // Default status
+          break;
+      }
+  
+      // Update the timesheet with the new approvers and status
+      const updatedTimesheet = await prisma.timesheet.update({
+        where: { id: parseInt(id) },
+        data: {
+          status: updatedStatus,
+          approvers: updatedApprovers, // Updated approvers list
+        },
+      });
+  
+      // Respond with the updated timesheet and success message
+      res.status(200).json({
+        message: `Timesheet approved by ${approverName} (${approverTitle}).`,
+        updatedTimesheet,
+      });
+    } catch (error) {
+      console.error("Error approving timesheet:", error);
+      res.status(500).json({ error: "Failed to approve timesheet." });
+    }
+  };
+  
 
 
 

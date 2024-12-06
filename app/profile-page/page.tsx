@@ -130,7 +130,7 @@ useEffect(() => {
     })
     .then((data) => {
       setUser(data); // Set the fetched user data
-      const isAdmin = ["admin", "approver", "hrmanager"].includes(data.role.toLowerCase());
+      const isAdmin = ["admin", "approver", "hr"].includes(data.role.toLowerCase());
       setIsAdmin(isAdmin); // Set admin status
 
       // If the user is an admin, fetch the list of all users
@@ -261,7 +261,7 @@ const handleUpdateUser = (updatedUser: User) => {
     return <div className="text-center text-red-500">{error}</div>;
   }
 
-  const handleTabClick = (value: "personal" | "account" | "timesheet" | "leave" | "add") => {
+  const handleTabClick = (value: "personal" | "account" | "timesheet"| "timesheetManagement" | "leave" | "add") => {
     setActiveTab(value);
   };
 
@@ -445,6 +445,26 @@ const handleUpdateUser = (updatedUser: User) => {
     Leave Management
   </TabsTrigger>
 
+  
+  {isAdmin && (
+
+
+<TabsTrigger
+  value="timesheetManagement"
+  onClick={() => handleTabClick('timesheetManagement')}
+  style={{
+    backgroundColor: activeTab === 'timesheetManagement' ? '#003366' : '#8B1F25',
+    color: activeTab === 'add' ? '#FFFFFF' : '#DDDDDD',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    transition: 'background-color 0.3s, color 0.3s',
+  }}
+>
+  Manage Timesheets
+</TabsTrigger>
+
+)}
+
   {isAdmin && (
 
 
@@ -517,17 +537,19 @@ const handleUpdateUser = (updatedUser: User) => {
                 
                 <TabsContent value="timesheet">
                 <TimesheetComponent userId={userMain.id} isApprover={isApprover} />
-                <TimesheetApprovalComponent userId={userMain.id} userRole={userMain.role}/>
 
               </TabsContent>
                         
               <TabsContent value="leave">
                 <LeaveManagementComponent userId={userMain.id} isApprover={isAdmin} />
                 <AdminLeaveManagementComponent userRole={userMain.role} userId={userMain.id} userName={userMain.name} />
-                <AdminTimesheetApprovalComponent timesheetId={1}/>
                 
               </TabsContent>
-
+              {isAdmin && (
+               <TabsContent value="timesheetManagement">
+                <TimesheetApprovalComponent userId={userMain.id} userRole={userMain.role} name={userMain.name} title={userMain.title}/>
+             </TabsContent>
+)}
               {isAdmin && (
   <TabsContent value="add">
     <Card>

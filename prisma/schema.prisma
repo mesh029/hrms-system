@@ -60,6 +60,7 @@ model Timesheet {
   id        Int      @id @default(autoincrement()) // Unique timesheet ID
   userId    Int      // User this timesheet belongs to
   user      User     @relation(fields: [userId], references: [id])
+  approvers    Json ?
   entries   TimesheetEntry[]  // Array of entries related to this timesheet (one per day)
   month     Int      // The month of the timesheet (e.g., 1 = January, 2 = February, etc.)
   year      Int      // The year of the timesheet

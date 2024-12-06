@@ -1,12 +1,9 @@
 import express from 'express';
 import { adminMiddleware, authenticateJWT, authenticateToken } from './server/middlewares/authMiddleWare.js';
-import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet } from './server/controllers/userController.js';
+import { createUser, getUsers, getUserById, updateUser, deleteUser, login, submitTimesheet,getTimesheetsByUser, createLeaveRequest, getLeaveRequests, getUserLeaves, approveLeave, denyLeave, updateLeaveStatus, getTimesheets, getTimesheetEntry, getTimesheet, approveTimesheet } from './server/controllers/userController.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
-
-
-
 
 const app = express();
 const PORT = process.env.PORT || 3030;
@@ -30,6 +27,7 @@ app.delete('/api/users/:id', deleteUser);
 
 
 app.post('/api/timesheets', submitTimesheet);
+app.patch('/api/timesheets/:id/approve', approveTimesheet);
 app.patch('/api/leaves/:id/approve', approveLeave);
 app.patch('/api/leaves/:id/deny', denyLeave);
 

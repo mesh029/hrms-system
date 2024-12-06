@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format, parseISO } from "date-fns"
 import { useRouter, useSearchParams } from "next/navigation"
-import { CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users, FileText, Edit2, Save, X, Clock, Calendar, Send, ArrowLeft, Phone, Hospital, Map } from 'lucide-react'
+import { CalendarIcon, User, Briefcase, Mail, Scale, Ruler, MapPin, Users, FileText, Edit2, Save, X, Clock, Calendar, Send, ArrowLeft, Phone, Hospital, Map, LampDesk } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,6 +30,7 @@ import dynamic from 'next/dynamic';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  title: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   role: z.string().min(1, { message: "Role is required." }),
   department: z.string().min(1, { message: "Department is required." }),
@@ -121,6 +122,7 @@ export default function UserProfilePage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      title:"",
       email: "",
       role: "",
       department: "",
@@ -404,6 +406,7 @@ export default function UserProfilePage() {
             </TabsList>
             <TabsContent value="personal" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <div className="relative">
@@ -418,6 +421,23 @@ export default function UserProfilePage() {
                   </div>
                   {form.formState.errors.name && (
                     <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title</Label>
+                  <div className="relative">
+                    <LampDesk className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      placeholder="Brian Odhiambo"
+                      className="pl-8 border-blue-300 focus:border-blue-500"
+                      {...form.register("title")}
+                      disabled={!isEditMode}
+                    />
+                  </div>
+                  {form.formState.errors.title && (
+                    <p className="text-sm text-red-500">{form.formState.errors.title.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -502,9 +522,13 @@ export default function UserProfilePage() {
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent>
-                        <SelectItem value="approver">Approver</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="hrio">HRIO</SelectItem>
+                        <SelectItem value="incharge">Facility Incharge</SelectItem>
+                          <SelectItem value="padm">PADM</SelectItem>
+                          <SelectItem value="po">PO</SelectItem>
+                          <SelectItem value="staff">staff</SelectItem>
+                          <SelectItem value="hr">HR</SelectItem>
+
+
                         </SelectContent>
                       </Select>
                     </>
